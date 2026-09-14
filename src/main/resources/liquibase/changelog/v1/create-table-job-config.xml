@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="1" author="hstefanov1">
+    <createTable tableName="job_config">
+      <column
+        name="id"
+        type="BIGINT"
+        autoIncrement="true">
+        <constraints primaryKey="true" primaryKeyName="job_config_pk" nullable="false"/>
+      </column>
+      <column
+        name="job_name"
+        type="VARCHAR(50)">
+        <constraints nullable="false" unique="true"/>
+      </column>
+      <column
+        name="batch_size"
+        type="INT"
+        defaultValueNumeric="100">
+        <constraints nullable="false"/>
+      </column>
+      <column
+        name="interval_seconds"
+        type="BIGINT"
+        defaultValueNumeric="300">
+        <constraints nullable="false"/>
+      </column>
+      <column
+        name="enabled"
+        type="BOOLEAN"
+        defaultValueBoolean="true">
+        <constraints nullable="false"/>
+      </column>
+      <column
+        name="next_run_at"
+        type="TIMESTAMP WITH TIME ZONE">
+        <constraints nullable="true"/>
+      </column>
+      <column
+        name="last_run_at"
+        type="TIMESTAMP WITH TIME ZONE">
+        <constraints nullable="true"/>
+      </column>
+      <column
+        name="version"
+        type="BIGINT"
+        defaultValueNumeric="0">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+
+</databaseChangeLog>
