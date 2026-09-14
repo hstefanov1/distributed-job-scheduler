@@ -1,4 +1,4 @@
-# distributed-job-scheduler
+# Distributed Job Scheduler
 
 A lightweight, Postgres-backed job scheduler for Quarkus applications that run with multiple
 replicas. It guarantees exactly-one-owner execution of each scheduled job across all replicas.
@@ -20,7 +20,7 @@ ownership.
 
 ## Advisory lock configuration
 
-Based on internal evaluation (see docs/tech-studies), the scheduler uses:
+Based on internal evaluation (see [docs/tech-studies](docs/tech-studies/README.md)), the scheduler uses:
 
 | Aspect           | Choice                                                        | Why                                                                                                        |
 |------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
