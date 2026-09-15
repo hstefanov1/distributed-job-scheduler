@@ -12,15 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 class JobRegistry {
 
-    private static final Integer BATCH_LIMIT = 10;
+    private static final Integer BATCH_LIMIT = 10; // start a max of ten jobs per run
 
     private final JobRepository repository;
     private final JobExecutor executor;
 
+    // delay scheduler two minutes to warm up the instance and only then dispatch jobs
     @Blocking
     @Scheduled(delay = 2, every = "30s")
-        // delay 2 minutes to warm up the instance
     void dispatchJobs() {
-        repository.claimDueJobs(BATCH_LIMIT).forEach(executor::execute);
+        repository.claimJobs(BATCH_LIMIT).forEach(executor::execute);
     }
 }

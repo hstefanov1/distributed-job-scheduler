@@ -29,11 +29,11 @@ class JobRegistryTest {
         JobConfig jobMock1 = mock(JobConfig.class);
         JobConfig jobMock2 = mock(JobConfig.class);
         List<JobConfig> jobMocks = List.of(jobMock1, jobMock2);
-        doReturn(jobMocks).when(repositoryMock).claimDueJobs(anyInt());
+        doReturn(jobMocks).when(repositoryMock).claimJobs(anyInt());
 
         instance.dispatchJobs();
 
-        verify(repositoryMock, times(1)).claimDueJobs(anyInt());
+        verify(repositoryMock, times(1)).claimJobs(anyInt());
         verify(executorMock, times(2)).execute(any());
     }
 }
