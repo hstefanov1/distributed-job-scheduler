@@ -4,9 +4,8 @@
 
 ## Key Characteristics
 
-- Each lock consumes shared memory. If we generate many distinct keys, we can exhaust the pool.
-- Advisory locks don't cross databases. We must ensure we use the same database for leader election
-  (worker node).
+- Each lock consumes a shared memory. If we generate many distinct keys, we can exhaust the pool.
+- Advisory locks don't cross databases. We must ensure we use the same database for leader election (worker node).
 
 ## Two lock types
 
@@ -20,7 +19,7 @@
 
 ## Acquire lock types
 
-- **blocking:** waits until lock available.
+- **blocking:** waits until the lock is available.
 - **non-blocking:** try and return immediately.
 - Inspect who holds what via the `pg_locks` view.
 
@@ -28,15 +27,13 @@
 
 `pg_try_advisory_lock(key1 int, key2 int)`
 
-Obtains an exclusive session-level advisory lock if available. This will either obtain the lock
-immediately and return `true`, or return `false` without waiting if the lock cannot be acquired
-immediately.
+Gets an exclusive session-level advisory lock if available. This will either get the lock immediately and return `true`,
+or return `false` without waiting if the lock cannot be acquired immediately.
 
 `pg_advisory_unlock(key1 int, key2 int)`
 
-Releases a previously-acquired exclusive session-level advisory lock. Returns `true` if the lock is
-successfully released. If the lock was not held, `false` is returned, and in addition, an SQL
-warning will be reported by the server.
+Releases a previously acquired exclusive session-level advisory lock. Returns `true` if the lock is successfully
+released. If the lock was not held, `false` is returned, and in addition, an SQL warning will be reported by the server.
 
 ## Conclusion
 

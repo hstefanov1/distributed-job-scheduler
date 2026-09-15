@@ -11,9 +11,9 @@ package io.github.hstefanov1.distributed.jobscheduler.api;
  * @param batchSize the number of records to be processed per batch for this job
  */
 public record JobContext(
-    JobName jobName,
-    String ownerId,
-    int batchSize
+        JobName jobName,
+        String ownerId,
+        int batchSize
 ) {
 
 }

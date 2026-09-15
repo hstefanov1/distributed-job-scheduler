@@ -18,6 +18,6 @@
 Every replica must periodically try to acquire the scheduler lock. Whoever owns it runs the
 scheduler. If that replica dies, the next replica eventually acquires the lock.
 
-**Recovery flow when the lock-owning replica crashes or shuts down:**
+**Recovery workflow when the lock-owning replica crashes or shuts down:**
 
 ![Replica Shutdown or Crash (Recovery Process)](../images/replica-recovery-flow-diagram.png)

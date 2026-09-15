@@ -6,8 +6,8 @@ import io.quarkus.runtime.annotations.QuarkusMain;
 @QuarkusMain
 public class Application {
 
-  public static void main(String[] args) {
-    Container.run();
-    Quarkus.run(args);
-  }
+    public static void main(String[] args) {
+        Container.run();
+        Quarkus.run(args);
+    }
 }
