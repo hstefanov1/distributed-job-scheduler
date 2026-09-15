@@ -3,6 +3,7 @@ package io.github.hstefanov1.distributed.jobscheduler.internal;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetAddress;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @Slf4j
 @ApplicationScoped
+@NoArgsConstructor(access = lombok.AccessLevel.PACKAGE)
 class JobRepository {
 
     private static final String OWNER_ID = resolveOwnerId();
@@ -25,9 +27,9 @@ class JobRepository {
         try {
             String hostname = InetAddress.getLocalHost().getHostName();
             long pid = ProcessHandle.current().pid();
-            return "local-%s-pid%s".formatted(hostname, pid);
+            return "local-%s-pid#%s".formatted(hostname, pid);
         } catch (UnknownHostException e) {
-            return "local-unknown-pid0";
+            return "local-unknown-pid#-1";
         }
     }
 
@@ -66,7 +68,7 @@ class JobRepository {
                 .getResultList();
 
         List<Long> jobIds = rows.stream().map(r -> ((Number) r).longValue()).toList();
-        if (!jobIds.isEmpty() && log.isDebugEnabled()) {
+        if (!jobIds.isEmpty()) {
             log.debug("Claimed [{}] due jobs for owner [{}]", jobIds.size(), OWNER_ID);
         }
 
@@ -84,10 +86,9 @@ class JobRepository {
 
         // warn user about unexpected behavior
         if (job == null) {
-            String message = "Could not complete job [{}] with owner [{}] because it was not found "
-                    + "(another instance may have claimed it). This is unsafe and unexpected behavior."
-                    + " Consider time to investigate it.";
-            log.warn(message, jobId, OWNER_ID);
+            log.warn("Could not complete job [{}] with owner [{}]. " +
+                    "This is unexpected behavior and may indicate a concurrency issue. " +
+                    "Please investigate :(", jobId, OWNER_ID);
             return;
         }
 
@@ -98,10 +99,8 @@ class JobRepository {
         job.ownerId = null; // no longer working on it
         job.persist();
 
-        if (log.isDebugEnabled()) {
-            JobName name = job.jobName;
-            Instant nextRunAt = job.nextRunAt.truncatedTo(ChronoUnit.SECONDS);
-            log.debug("Job [{}] rescheduled to [{}]", name, nextRunAt);
-        }
+        JobName name = job.jobName;
+        Instant nextRunAt = job.nextRunAt.truncatedTo(ChronoUnit.SECONDS);
+        log.debug("Job [{}] rescheduled to [{}]", name, nextRunAt);
     }
 }
