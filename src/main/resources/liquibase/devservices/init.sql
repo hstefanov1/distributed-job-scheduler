@@ -1,2 +1,2 @@
 -- Create our schema.
-CREATE SCHEMA IF NOT EXISTS job_scheduler;
+CREATE SCHEMA IF NOT EXISTS scheduler;

@@ -1,7 +1,7 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -25,16 +25,22 @@ class JobConfig extends PanacheEntityBase {
   @Enumerated(EnumType.STRING)
   public JobName jobName;
 
+  @Column(name = "owner_id")
+  public String ownerId;
+
+  @Column(name = "owner_heartbeat_at", nullable = false)
+  public Instant ownerHeartbeatAt;
+
   @Column(name = "batch_size", nullable = false)
   public Integer batchSize;
 
   @Column(name = "interval_seconds", nullable = false)
-  public Long intervalSeconds;
+  public Integer intervalSeconds;
 
   @Column(name = "enabled", nullable = false)
   public Boolean enabled;
 
-  @Column(name = "next_run_at")
+  @Column(name = "next_run_at", nullable = false)
   public Instant nextRunAt;
 
   @Column(name = "last_run_at")

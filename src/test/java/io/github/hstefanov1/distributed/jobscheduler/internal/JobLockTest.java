@@ -256,7 +256,7 @@ class JobLockTest {
   }
 
   @Test
-  void shutdown_WhenServiceIsShutdown_ThenReleaseIsCalled() {
+  void onShutdown_WhenServiceIsShutdown_ThenReleaseIsCalled() {
     // populate locks
     JobLock instanceSpy = spy(instance);
     Connection connMock = mock(Connection.class);
@@ -268,7 +268,7 @@ class JobLockTest {
     doNothing().when(instanceSpy).release(any());
 
     // test goal
-    instanceSpy.shutdown();
+    instanceSpy.onShutdown();
 
     // verifications
     verify(instanceSpy, times(1)).release(any());

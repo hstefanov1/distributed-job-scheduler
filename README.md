@@ -93,7 +93,7 @@ Current datasource configuration:
 - **Database:** `quarkus`
 - **Username:** `quarkus`
 - **Password:** `quarkus`
-- **Schema:** `job_scheduler`
+- **Schema:** `scheduler`
 - **JDBC:** `jdbc:postgresql://localhost:5432/quarkus`
 
 ## Package and run

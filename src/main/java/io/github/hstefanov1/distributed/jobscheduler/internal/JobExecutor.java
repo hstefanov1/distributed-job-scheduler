@@ -1,12 +1,9 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
-import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobContext;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobProcessor;
 import jakarta.enterprise.context.ApplicationScoped;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.AccessLevel;
@@ -21,6 +18,7 @@ class JobExecutor {
 
   private final JobLock lock;
   private final JobFactory factory;
+  private final JobRepository repository;
   private final Set<JobName> running = ConcurrentHashMap.newKeySet();
 
   /**
@@ -42,35 +40,28 @@ class JobExecutor {
       return;
     }
 
+    start(job);
+  }
+
+  void start(JobConfig job) {
+    JobName jobName = job.jobName;
     try {
       JobProcessor processor = factory.get(jobName);
       JobContext context = createContext(job);
-      log.debug("Job [{}] processing", jobName);
+      log.debug("Job [{}] started", jobName);
       processor.process(context);
     } finally {
-      reschedule(job.id);
+      repository.completeJob(job.id);
       running.remove(jobName);
+      log.debug("Job [{}] completed", jobName);
     }
-
-    log.debug("Job [{}] completed", jobName);
   }
 
   JobContext createContext(JobConfig job) {
     return new JobContext(
         job.jobName,
+        job.ownerId,
         job.batchSize
     );
-  }
-
-  void reschedule(@NonNull Long jobId) {
-    QuarkusTransaction.requiringNew().run(() -> {
-      JobConfig job = JobConfig.findById(jobId); // because instance is detached
-      Instant now = Instant.now();
-      job.lastRunAt = now;
-      job.nextRunAt = now.plusSeconds(job.intervalSeconds);
-      log.debug("Job [{}] rescheduled to [{}]", job.jobName,
-          job.nextRunAt.truncatedTo(ChronoUnit.SECONDS));
-      job.persist();
-    });
   }
 }

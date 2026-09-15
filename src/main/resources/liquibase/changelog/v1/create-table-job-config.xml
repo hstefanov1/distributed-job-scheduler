@@ -11,49 +11,76 @@
       <column
         name="id"
         type="BIGINT"
-        autoIncrement="true">
+        autoIncrement="true"
+        remarks="Unique identifier of the job.">
         <constraints primaryKey="true" primaryKeyName="job_config_pk" nullable="false"/>
       </column>
       <column
         name="job_name"
-        type="VARCHAR(50)">
+        type="VARCHAR(255)"
+        remarks="The job name represented by the JobName enum class.">
         <constraints nullable="false" unique="true"/>
+      </column>
+      <column
+        name="owner_id"
+        type="VARCHAR(255)"
+        remarks="Owner identifier currently responsible for this job.">
+        <constraints nullable="true"/>
+      </column>
+      <column
+        name="owner_heartbeat_at"
+        type="TIMESTAMP WITH TIME ZONE"
+        defaultValueComputed="'epoch'"
+        remarks="Last time the owner confirmed it is alive, in UTC. Used to detect dead owners and reclaim the job.">
+        <constraints nullable="false"/>
       </column>
       <column
         name="batch_size"
         type="INT"
-        defaultValueNumeric="100">
+        defaultValueNumeric="100"
+        remarks="Number of records processed per batch for this job.">
         <constraints nullable="false"/>
       </column>
       <column
         name="interval_seconds"
-        type="BIGINT"
-        defaultValueNumeric="300">
+        type="INT"
+        defaultValueNumeric="300"
+        remarks="Interval in seconds used to compute the next eligible run time after a job completes.">
         <constraints nullable="false"/>
       </column>
       <column
         name="enabled"
         type="BOOLEAN"
-        defaultValueBoolean="true">
+        defaultValueBoolean="true"
+        remarks="Enable or disable the job.">
         <constraints nullable="false"/>
       </column>
       <column
         name="next_run_at"
-        type="TIMESTAMP WITH TIME ZONE">
-        <constraints nullable="true"/>
+        type="TIMESTAMP WITH TIME ZONE"
+        defaultValueComputed="now()"
+        remarks="Date and time from which the job becomes eligible to run, in UTC.">
+        <constraints nullable="false"/>
       </column>
       <column
         name="last_run_at"
-        type="TIMESTAMP WITH TIME ZONE">
+        type="TIMESTAMP WITH TIME ZONE"
+        remarks="Date and time the job last completed successfully, in UTC.">
         <constraints nullable="true"/>
       </column>
       <column
         name="version"
         type="BIGINT"
-        defaultValueNumeric="0">
+        defaultValueNumeric="0"
+        remarks="Version number used for optimistic locking.">
         <constraints nullable="false"/>
       </column>
     </createTable>
+
+    <createIndex tableName="job_config" indexName="job_config_enabled_next_run_idx">
+      <column name="enabled"/>
+      <column name="next_run_at"/>
+    </createIndex>
   </changeSet>
 
 </databaseChangeLog>

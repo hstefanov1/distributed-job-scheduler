@@ -25,9 +25,12 @@ public class DeactivateExpiredProcessor implements JobProcessor {
 
     // some mocked workload
     try {
-      long seconds = 36;
-      log.info("Processing workload [{}s]", seconds);
-      TimeUnit.SECONDS.sleep(seconds);
+      long seconds = 30;
+      int repeat = 4;
+      log.info("Processing workload [{}s]", seconds * repeat);
+      for (long i = 1; i <= repeat; i++) {
+        TimeUnit.SECONDS.sleep(seconds);
+      }
     } catch (InterruptedException ignored) {
       // we don't care, it's for test purposes
     }

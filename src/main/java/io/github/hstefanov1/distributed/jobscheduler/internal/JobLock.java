@@ -127,8 +127,7 @@ class JobLock {
    * clarity and to avoid relying on that implicit behavior.
    */
   @Shutdown
-  @SuppressWarnings("unused")
-  void shutdown() {
+  void onShutdown() {
     log.debug("Releasing [{}] job locks and connections", locks.size());
     locks.keySet().forEach(this::release);
   }

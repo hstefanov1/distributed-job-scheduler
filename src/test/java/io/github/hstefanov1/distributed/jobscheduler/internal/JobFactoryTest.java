@@ -26,7 +26,7 @@ class JobFactoryTest {
 
     IllegalStateException e = assertThrows(IllegalStateException.class,
         () -> factory.get(JobName.DEACTIVATE_EXPIRED));
-    assertEquals("No JobProcessor registered for [DEACTIVATE_EXPIRED]", e.getMessage());
+    assertEquals("No JobProcessor registered for job [DEACTIVATE_EXPIRED]", e.getMessage());
   }
 
   @Test

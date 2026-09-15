@@ -3,7 +3,6 @@ package io.github.hstefanov1.distributed.jobscheduler.internal;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.common.annotation.Blocking;
 import jakarta.enterprise.context.ApplicationScoped;
-import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,13 +12,14 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 class JobRegistry {
 
+  private static final Integer BATCH_LIMIT = 10;
+
+  private final JobRepository repository;
   private final JobExecutor executor;
 
   @Blocking
-  @Scheduled(every = "30s")
+  @Scheduled(delay = 2, every = "30s") // delay 2 minutes to warm up the instance
   void dispatchJobs() {
-    Instant now = Instant.now();
-    String sql = "enabled = true and (nextRunAt is null or nextRunAt <= ?1)";
-    JobConfig.<JobConfig>find(sql, now).list().forEach(executor::execute);
+    repository.claimDueJobs(BATCH_LIMIT).forEach(executor::execute);
   }
 }

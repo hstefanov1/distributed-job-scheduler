@@ -1,11 +1,10 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -13,20 +12,15 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import io.quarkus.narayana.jta.QuarkusTransaction;
-import io.quarkus.narayana.jta.TransactionRunnerOptions;
+import io.github.hstefanov1.distributed.jobscheduler.api.JobContext;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobProcessor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@SuppressWarnings("java:S2925") // we use native
 @ExtendWith(MockitoExtension.class)
 class JobExecutorTest {
 
@@ -35,6 +29,9 @@ class JobExecutorTest {
 
   @Mock
   private JobFactory factoryMock;
+
+  @Mock
+  private JobRepository repositoryMock;
 
   @InjectMocks
   private JobExecutor instance;
@@ -57,25 +54,14 @@ class JobExecutorTest {
     // verifications
     verify(lockMock, times(1)).tryAcquire(any());
     verify(factoryMock, times(0)).get(any());
-    verify(instanceSpy, times(0)).reschedule(anyLong());
+    verify(instanceSpy, times(0)).start(any());
   }
 
   @Test
   void execute_WhenJobIsAlreadyRunning_ThenJobDoesNotStartAgain() throws Exception {
     // mock behaviors
     JobExecutor instanceSpy = spy(instance);
-    doNothing().when(instanceSpy).reschedule(anyLong());
-
-    JobProcessor processorMock = mock(JobProcessor.class);
-    doAnswer(i -> {
-      try {
-        Thread.sleep(100); // simulate 200ms of work
-      } catch (Exception ignored) {
-        // we don't care
-      }
-      return null;
-    }).when(processorMock).process(any());
-    doReturn(processorMock).when(factoryMock).get(any());
+    doNothing().when(instanceSpy).start(any());
     doReturn(true).when(lockMock).tryAcquire(any());
 
     // build same job twice
@@ -92,56 +78,71 @@ class JobExecutorTest {
 
     // verifications
     verify(lockMock, times(2)).tryAcquire(any());
-    verify(factoryMock, times(1)).get(any());
-    verify(processorMock, times(1)).process(any());
+    verify(instanceSpy, times(1)).start(any());
+  }
+
+  @Test
+  void execute_WhenJobIsNotRunning_ThenJobIsStarted() {
+    JobConfig job = createJobConfig();
+    doReturn(true).when(lockMock).tryAcquire(any());
+
+    JobExecutor instanceSpy = spy(instance);
+    doNothing().when(instanceSpy).start(any());
+    instanceSpy.execute(job);
+
+    verify(lockMock, times(1)).tryAcquire(any());
+    verify(instanceSpy, times(1)).start(any());
   }
 
   @Test
   @SuppressWarnings("DataFlowIssue")
-  void reschedule_WhenNullJobId_ThenAnExceptionIsThrown() {
-    assertThrows(NullPointerException.class, () -> instance.reschedule(null));
+  void start_WhenJobIsNull_ThenAnExceptionIsThrown() {
+    assertThrows(NullPointerException.class, () -> instance.start(null));
   }
 
   @Test
-  void reschedule_WhenJobIdValid_ThenLastRunAtAndNextRunAtAreUpdated() {
-    // mock quarkus transaction calls and call real run
-    TransactionRunnerOptions optionsMock = mock(TransactionRunnerOptions.class);
-    doAnswer(i -> {
-      Runnable runnable = i.getArgument(0);
-      runnable.run(); // execute real lambda
-      return null;
-    }).when(optionsMock).run(any());
+  void start_WhenJobIsValid_ThenCompleteJobIsCalled() {
+    JobExecutor instanceSpy = spy(instance);
 
-    JobConfig jobMock = createJobConfig();
+    JobConfig job = createJobConfig();
 
-    try (MockedStatic<QuarkusTransaction> tMock = Mockito.mockStatic(QuarkusTransaction.class);
-        MockedStatic<PanacheEntityBase> pMock = Mockito.mockStatic(PanacheEntityBase.class)) {
+    JobProcessor processorMock = mock(JobProcessor.class);
+    doReturn(processorMock).when(factoryMock).get(any());
 
-      // mock behaviors
-      tMock.when(QuarkusTransaction::requiringNew).thenReturn(optionsMock);
-      pMock.when(() -> JobConfig.findById(anyLong())).thenReturn(jobMock);
+    JobContext contextMock = mock(JobContext.class);
+    doReturn(contextMock).when(instanceSpy).createContext(any());
 
-      assertNull(jobMock.lastRunAt);
-      assertNull(jobMock.nextRunAt);
-      instance.reschedule(1L);
-      assertNotNull(jobMock.lastRunAt);
-      assertNotNull(jobMock.nextRunAt);
+    doNothing().when(repositoryMock).completeJob(anyLong());
 
-      // static verifications
-      tMock.verify(QuarkusTransaction::requiringNew, times(1));
-      pMock.verify(() -> JobConfig.findById(anyLong()), times(1));
-    }
+    instanceSpy.start(job);
 
-    // mock verifications
-    verify(optionsMock, times(1)).run(any());
-    verify(jobMock, times(1)).persist();
+    verify(factoryMock, times(1)).get(any());
+    verify(instanceSpy, times(1)).createContext(any());
+    verify(processorMock, times(1)).process(any());
+    verify(repositoryMock, times(1)).completeJob(anyLong());
+  }
+
+  @Test
+  @SuppressWarnings("DataFlowIssue")
+  void createContext_WhenJobIsNull_ThenExceptionIsThrown() {
+    assertThrows(NullPointerException.class, () -> instance.createContext(null));
+  }
+
+  @Test
+  void createContext_WhenJobIsValid_ThenJobContextIsCreated() {
+    JobConfig job = createJobConfig();
+    JobContext result = instance.createContext(job);
+    assertNotNull(result);
+    assertEquals(job.jobName, result.jobName());
+    assertEquals(job.ownerId, result.ownerId());
+    assertEquals(job.batchSize, result.batchSize());
   }
 
   private JobConfig createJobConfig() {
     JobConfig configMock = mock(JobConfig.class);
     configMock.id = 1L;
     configMock.batchSize = 100;
-    configMock.intervalSeconds = 300L;
+    configMock.intervalSeconds = 300;
     configMock.jobName = JobName.DEACTIVATE_EXPIRED;
     return configMock;
   }

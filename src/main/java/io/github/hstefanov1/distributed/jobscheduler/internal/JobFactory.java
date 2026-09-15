@@ -25,7 +25,7 @@ class JobFactory {
       // 1) your processor implements the interface JobProcessor
       // 2) your processor#name() returns the expected JobName
       // 3) your processor is public and application-scoped
-      throw new IllegalStateException("No JobProcessor registered for [%s]".formatted(name));
+      throw new IllegalStateException("No JobProcessor registered for job [%s]".formatted(name));
     }
     return processor;
   }
