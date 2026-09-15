@@ -16,8 +16,7 @@ import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Manages PostgreSQL session-level advisory locks (exclusive, non-blocking) keyed by
- * {@link JobName}.
+ * Manages PostgreSQL session-level advisory locks (exclusive, non-blocking) keyed by {@link JobName}.
  * <p>
  * Each held lock pins one {@link Connection} from the pool until instance shutdown.
  */
@@ -50,8 +49,7 @@ class JobLock {
             closeSafely(connection); // avoid connection leak if any exception
             throw e;
         }
-        log.debug("Lock for job [{}] {}", key,
-                locked ? "successfully acquired" : "could NOT be acquired");
+        log.debug("Lock for job [{}] {}", key, locked ? "acquired" : "NOT acquired");
 
         if (!locked) {
             closeSafely(connection); // unable to acquire lock then close connection
@@ -75,7 +73,7 @@ class JobLock {
         } finally {
             closeSafely(connection);
         }
-        log.debug("Lock for job [{}] successfully released", key);
+        log.debug("Lock for job [{}] released", key);
     }
 
     boolean tryAdvisoryLock(Connection connection, JobName key) {
@@ -129,7 +127,7 @@ class JobLock {
      */
     @Shutdown
     void onShutdown() {
-        log.debug("Releasing [{}] job locks and connections", locks.size());
+        log.debug("Releasing [{}] job locks", locks.size());
         locks.keySet().forEach(this::release);
     }
 }

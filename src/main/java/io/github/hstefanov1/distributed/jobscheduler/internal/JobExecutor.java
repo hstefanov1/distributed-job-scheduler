@@ -37,7 +37,7 @@ class JobExecutor {
         }
 
         if (!running.add(jobName)) {
-            log.debug("Job [{}] still in progress, skipping this tick", jobName);
+            log.debug("Job [{}] still in progress (run skipped)", jobName);
             return;
         }
 
