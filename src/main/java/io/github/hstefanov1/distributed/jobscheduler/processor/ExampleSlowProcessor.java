@@ -23,7 +23,7 @@ public class ExampleSlowProcessor implements JobProcessor {
     public void process(JobContext context) {
         log.info("Processing example slow");
         try {
-            long seconds = 150;
+            long seconds = 180;
             log.info("Workload [{}s]", seconds);
             TimeUnit.SECONDS.sleep(seconds);
         } catch (InterruptedException ignored) {

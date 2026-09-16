@@ -34,6 +34,6 @@ class JobRegistryTest {
         instance.dispatchJobs();
 
         verify(repositoryMock, times(1)).claimJobs(anyInt());
-        verify(executorMock, times(2)).execute(any());
+        verify(executorMock, times(2)).submit(any());
     }
 }

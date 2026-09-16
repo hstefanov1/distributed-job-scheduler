@@ -1,7 +1,7 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
 import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
-import jakarta.annotation.PreDestroy;
+import io.quarkus.runtime.Shutdown;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -47,9 +47,10 @@ class JobLock {
             locked = tryAdvisoryLock(connection, key);
         } catch (RuntimeException e) {
             closeSafely(connection); // avoid connection leak if any exception
+            log.warn("Lock for job [{}] failed acquiring", key);
             throw e;
         }
-        log.debug("Lock for job [{}] {}", key, locked ? "acquired" : "NOT acquired");
+        log.debug("Lock for job [{}] {}", key, locked ? "acquired" : "not acquired");
 
         if (!locked) {
             closeSafely(connection); // unable to acquire lock then close connection
@@ -125,8 +126,8 @@ class JobLock {
      * PostgreSQL would release them anyway once the connection closes, but do it explicitly here for
      * clarity and to avoid relying on that implicit behavior.
      */
-    @PreDestroy
-    void preDestroy() {
+    @Shutdown
+    void onShutdown() {
         log.debug("Releasing [{}] job locks", locks.size());
         locks.keySet().forEach(this::release);
     }
