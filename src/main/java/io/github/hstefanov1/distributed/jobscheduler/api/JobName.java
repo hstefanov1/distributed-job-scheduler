@@ -10,8 +10,6 @@ package io.github.hstefanov1.distributed.jobscheduler.api;
  */
 public enum JobName {
 
-    /**
-     * Deactivates records that have passed their expiration date.
-     */
-    DEACTIVATE_EXPIRED
+    EXAMPLE_SLOW,
+    EXAMPLE_FAST
 }

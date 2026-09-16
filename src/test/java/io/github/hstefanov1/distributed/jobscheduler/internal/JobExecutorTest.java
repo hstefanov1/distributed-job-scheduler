@@ -136,7 +136,7 @@ class JobExecutorTest {
         configMock.id = 1L;
         configMock.batchSize = 100;
         configMock.intervalSeconds = 300;
-        configMock.jobName = JobName.DEACTIVATE_EXPIRED;
+        configMock.jobName = JobName.EXAMPLE_SLOW;
         return configMock;
     }
 

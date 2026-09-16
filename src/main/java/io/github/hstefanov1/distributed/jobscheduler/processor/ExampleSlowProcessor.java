@@ -8,31 +8,26 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
 
-import static io.github.hstefanov1.distributed.jobscheduler.api.JobName.DEACTIVATE_EXPIRED;
+import static io.github.hstefanov1.distributed.jobscheduler.api.JobName.EXAMPLE_SLOW;
 
 @Slf4j
 @ApplicationScoped
-public class DeactivateExpiredProcessor implements JobProcessor {
+public class ExampleSlowProcessor implements JobProcessor {
 
     @Override
     public JobName name() {
-        return DEACTIVATE_EXPIRED;
+        return EXAMPLE_SLOW;
     }
 
     @Override
-    @SuppressWarnings("java:S2142")
     public void process(JobContext context) {
-        log.info("Processing deactivation of expired");
-
-        // some mocked workload
+        log.info("Processing example slow");
         try {
             long seconds = 150;
-            log.info("Processing workload [{}s]", seconds);
+            log.info("Workload [{}s]", seconds);
             TimeUnit.SECONDS.sleep(seconds);
         } catch (InterruptedException ignored) {
-            // we don't care, it's for test purposes
         }
-
-        log.info("Completed processing deactivation of expired");
+        log.info("Processed example slow");
     }
 }

@@ -34,14 +34,14 @@ class JobFactoryTest {
         JobFactory instance = new JobFactory(instances);
 
         IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> instance.get(JobName.DEACTIVATE_EXPIRED));
-        assertEquals("No job processor registered for job name [DEACTIVATE_EXPIRED]", e.getMessage());
+                () -> instance.get(JobName.EXAMPLE_SLOW));
+        assertEquals("No job processor registered for job name [EXAMPLE_SLOW]", e.getMessage());
     }
 
     @Test
     void get_WhenProcessorIsRegistered_ThenIsReturned() {
         JobFactory instance = createInstance();
-        JobProcessor result = instance.get(JobName.DEACTIVATE_EXPIRED);
+        JobProcessor result = instance.get(JobName.EXAMPLE_SLOW);
         assertEquals(processorMock, result);
     }
 
@@ -77,7 +77,7 @@ class JobFactoryTest {
     }
 
     private JobFactory createInstance() {
-        doReturn(JobName.DEACTIVATE_EXPIRED).when(processorMock).name();
+        doReturn(JobName.EXAMPLE_SLOW).when(processorMock).name();
 
         Instance<JobProcessor> instances = mock(Instance.class);
         doReturn(Stream.of(processorMock)).when(instances).stream();

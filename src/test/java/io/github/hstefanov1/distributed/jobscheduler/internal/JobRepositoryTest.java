@@ -98,7 +98,7 @@ class JobRepositoryTest {
             mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
 
             JobConfig jobMock = mock(JobConfig.class);
-            jobMock.jobName = JobName.DEACTIVATE_EXPIRED;
+            jobMock.jobName = JobName.EXAMPLE_FAST;
             jobMock.intervalSeconds = 123;
             jobMock.ownerId = "my_owner";
             doReturn(jobMock).when(query).firstResult();

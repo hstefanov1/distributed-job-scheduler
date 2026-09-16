@@ -8,12 +8,16 @@
 
     <changeSet id="1" author="hstefanov1">
         <insert tableName="job_config">
-            <column name="job_name" value="DEACTIVATE_EXPIRED"/>
+            <column name="job_name" value="EXAMPLE_SLOW"/>
+        </insert>
+
+        <insert tableName="job_config">
+            <column name="job_name" value="EXAMPLE_FAST"/>
         </insert>
 
         <rollback>
             <delete tableName="job_config">
-                <where>job_name IN ('DEACTIVATE_EXPIRED')</where>
+                <where>job_name IN ('EXAMPLE_SLOW', 'EXAMPLE_FAST')</where>
             </delete>
         </rollback>
     </changeSet>

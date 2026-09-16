@@ -44,8 +44,8 @@ class JobLockTest {
         doReturn(true).when(instanceSpy).tryAdvisoryLock(any(), any());
 
         // first call acquires lock, second call reuse the lock
-        boolean resultFirst = instanceSpy.tryAcquire(JobName.DEACTIVATE_EXPIRED);
-        boolean resultSecond = instanceSpy.tryAcquire(JobName.DEACTIVATE_EXPIRED);
+        boolean resultFirst = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
+        boolean resultSecond = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
         assertTrue(resultFirst);
         assertTrue(resultSecond);
 
@@ -69,7 +69,7 @@ class JobLockTest {
 
         // test goal
         assertThrows(IllegalStateException.class,
-                () -> instanceSpy.tryAcquire(JobName.DEACTIVATE_EXPIRED));
+                () -> instanceSpy.tryAcquire(JobName.EXAMPLE_FAST));
 
         // verifications
         verify(instanceSpy, times(1)).getConnection();
@@ -89,7 +89,7 @@ class JobLockTest {
         doReturn(false).when(instanceSpy).tryAdvisoryLock(any(), any());
 
         // test goal
-        boolean result = instanceSpy.tryAcquire(JobName.DEACTIVATE_EXPIRED);
+        boolean result = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
         assertFalse(result);
 
         // verifications
@@ -107,7 +107,7 @@ class JobLockTest {
     @Test
     void release_WhenLockHeldByAnotherInstance_ThenReleaseIsNotCalled() {
         JobLock instanceSpy = spy(instance);
-        instanceSpy.release(JobName.DEACTIVATE_EXPIRED);
+        instanceSpy.release(JobName.EXAMPLE_FAST);
         verify(instanceSpy, times(0)).advisoryUnlock(any(), any());
         verify(instanceSpy, times(0)).closeSafely(any());
     }
@@ -119,7 +119,7 @@ class JobLockTest {
         Connection connMock = mock(Connection.class);
         doReturn(connMock).when(instanceSpy).getConnection();
         doReturn(true).when(instanceSpy).tryAdvisoryLock(any(), any());
-        boolean locked = instanceSpy.tryAcquire(JobName.DEACTIVATE_EXPIRED);
+        boolean locked = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
         assertTrue(locked);
 
         // mock behaviors
@@ -127,7 +127,7 @@ class JobLockTest {
         doNothing().when(instanceSpy).closeSafely(any());
 
         // test goal
-        instanceSpy.release(JobName.DEACTIVATE_EXPIRED);
+        instanceSpy.release(JobName.EXAMPLE_FAST);
         verify(instanceSpy, times(1)).advisoryUnlock(any(), any());
         verify(instanceSpy, times(1)).closeSafely(any());
     }
@@ -143,7 +143,7 @@ class JobLockTest {
         doReturn(true).when(rsMock).getBoolean(1);
 
         // test goal
-        boolean result = instance.tryAdvisoryLock(connMock, JobName.DEACTIVATE_EXPIRED);
+        boolean result = instance.tryAdvisoryLock(connMock, JobName.EXAMPLE_FAST);
         assertTrue(result);
 
         // verifications
@@ -168,7 +168,7 @@ class JobLockTest {
         doThrow(SQLException.class).when(connMock).prepareStatement(anyString());
 
         IllegalStateException e = assertThrows(IllegalStateException.class, () ->
-                instance.tryAdvisoryLock(connMock, JobName.DEACTIVATE_EXPIRED));
+                instance.tryAdvisoryLock(connMock, JobName.EXAMPLE_FAST));
         String expected = "Failed executing query [%s]".formatted(query);
         assertEquals(expected, e.getMessage());
     }
@@ -181,7 +181,7 @@ class JobLockTest {
         doReturn(psMock).when(connMock).prepareStatement(anyString());
 
         // test goal
-        instance.advisoryUnlock(connMock, JobName.DEACTIVATE_EXPIRED);
+        instance.advisoryUnlock(connMock, JobName.EXAMPLE_FAST);
 
         // verifications
         verify(connMock, times(1)).prepareStatement(anyString());
@@ -202,7 +202,7 @@ class JobLockTest {
         doThrow(SQLException.class).when(connMock).prepareStatement(anyString());
 
         IllegalStateException e = assertThrows(IllegalStateException.class, () ->
-                instance.advisoryUnlock(connMock, JobName.DEACTIVATE_EXPIRED));
+                instance.advisoryUnlock(connMock, JobName.EXAMPLE_FAST));
         String expected = "Failed executing query [%s]".formatted(query);
         assertEquals(expected, e.getMessage());
     }
@@ -251,7 +251,7 @@ class JobLockTest {
         Connection connMock = mock(Connection.class);
         doReturn(connMock).when(instanceSpy).getConnection();
         doReturn(true).when(instanceSpy).tryAdvisoryLock(any(), any());
-        boolean locked = instanceSpy.tryAcquire(JobName.DEACTIVATE_EXPIRED);
+        boolean locked = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
         assertTrue(locked);
 
         doNothing().when(instanceSpy).release(any());
