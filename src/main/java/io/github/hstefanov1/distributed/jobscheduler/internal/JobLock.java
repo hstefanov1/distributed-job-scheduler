@@ -1,7 +1,7 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
 import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
-import io.quarkus.runtime.Shutdown;
+import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -125,8 +125,8 @@ class JobLock {
      * PostgreSQL would release them anyway once the connection closes, but do it explicitly here for
      * clarity and to avoid relying on that implicit behavior.
      */
-    @Shutdown
-    void onShutdown() {
+    @PreDestroy
+    void preDestroy() {
         log.debug("Releasing [{}] job locks", locks.size());
         locks.keySet().forEach(this::release);
     }
