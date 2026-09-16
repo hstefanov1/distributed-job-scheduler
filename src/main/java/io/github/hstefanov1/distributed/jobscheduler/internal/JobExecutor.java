@@ -101,7 +101,7 @@ class JobExecutor {
         // This is a two-phase shutdown pattern by Oracle ;)
         // Ref: https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/ExecutorService.html
         //
-        log.info("Shutting down job executor");
+        log.info("Job executor shutting down");
         executor.shutdown(); // stop accepting new jobs
         try {
             if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {

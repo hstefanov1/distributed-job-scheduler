@@ -3,11 +3,18 @@ package io.github.hstefanov1.distributed.jobscheduler.internal;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobContext;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobProcessor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.lang.reflect.Field;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,6 +23,12 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class JobExecutorTest {
+
+    @Mock
+    private Semaphore semaphoreMock;
+
+    @Mock
+    private ExecutorService executorMock;
 
     @Mock
     private JobLock lockMock;
@@ -28,6 +41,80 @@ class JobExecutorTest {
 
     @InjectMocks
     private JobExecutor instance;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        // inject mocked semaphore
+        Field field = JobExecutor.class.getDeclaredField("semaphore");
+        field.setAccessible(true);
+        field.set(instance, semaphoreMock);
+
+        // inject mocked executor service
+        field = JobExecutor.class.getDeclaredField("executor");
+        field.setAccessible(true);
+        field.set(instance, executorMock);
+    }
+
+    @Test
+    @SuppressWarnings("DataFlowIssue")
+    void submit_WhenJobIsNull_ThenShouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () -> instance.submit(null));
+    }
+
+    @Test
+    void submit_WhenSemaphoreAcquired_ThenShouldExecuteJob() throws InterruptedException {
+        JobConfig jobMock = mock(JobConfig.class);
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+
+        JobExecutor instanceSpy = spy(instance);
+        doNothing().when(instanceSpy).execute(any());
+
+        instanceSpy.submit(jobMock);
+
+        verify(executorMock, times(1)).submit(taskCaptor.capture());
+        taskCaptor.getValue().run(); // execute the captured runnable synchronously
+        verify(semaphoreMock, times(1)).acquire();
+        verify(semaphoreMock, times(1)).release();
+        verify(instanceSpy, times(1)).execute(jobMock);
+    }
+
+    @Test
+    void submit_WhenExecuteThrowsException_ThenShouldStillReleaseSemaphore() throws Exception {
+        JobConfig jobMock = mock(JobConfig.class);
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+
+        JobExecutor instanceSpy = spy(instance);
+        doThrow(RuntimeException.class).when(instanceSpy).execute(any());
+
+        instanceSpy.submit(jobMock);
+
+        verify(executorMock, times(1)).submit(taskCaptor.capture());
+        try {
+            taskCaptor.getValue().run(); // execute the captured runnable synchronously
+        } catch (RuntimeException ignored) {
+            // don't care
+        }
+        verify(semaphoreMock, times(1)).acquire();
+        verify(semaphoreMock, times(1)).release();
+        verify(instanceSpy, times(1)).execute(jobMock);
+    }
+
+    @Test
+    void submit_WhenInterruptedWhileAcquiringSemaphore_ThenShouldNotExecuteJob() throws InterruptedException {
+        JobConfig jobMock = mock(JobConfig.class);
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        doThrow(InterruptedException.class).when(semaphoreMock).acquire();
+
+        JobExecutor instanceSpy = spy(instance);
+        instanceSpy.submit(jobMock);
+
+        verify(executorMock, times(1)).submit(taskCaptor.capture());
+        taskCaptor.getValue().run(); // execute the captured runnable synchronously
+        verify(semaphoreMock, times(1)).acquire();
+        verify(semaphoreMock, never()).release();
+        verify(instanceSpy, never()).execute(jobMock);
+    }
+
 
     @Test
     @SuppressWarnings("DataFlowIssue")
@@ -129,6 +216,50 @@ class JobExecutorTest {
         assertEquals(job.jobName, result.jobName());
         assertEquals(job.ownerId, result.ownerId());
         assertEquals(job.batchSize, result.batchSize());
+    }
+
+    @Test
+    void onShutdown_WhenTerminatesWithinFirstTimeout_ThenShouldNotForceShutdown() throws InterruptedException {
+        doReturn(true).when(executorMock).awaitTermination(anyLong(), any());
+
+        instance.onShutdown();
+
+        verify(executorMock, times(1)).shutdown();
+        verify(executorMock, times(1)).awaitTermination(anyLong(), any());
+        verify(executorMock, never()).shutdownNow();
+    }
+
+    @Test
+    void onShutdown_WhenDoesNotTerminateWithinFirstTimeout_ThenShouldCallShutdownNow() throws InterruptedException {
+        doReturn(false).when(executorMock).awaitTermination(anyLong(), any());
+
+        instance.onShutdown();
+
+        verify(executorMock, times(1)).shutdown();
+        verify(executorMock, times(2)).awaitTermination(anyLong(), any());
+        verify(executorMock, times(1)).shutdownNow();
+    }
+
+    @Test
+    void onShutdown_WhenTerminatesAfterForcedShutdown_ThenShouldNotLogError() throws InterruptedException {
+        doReturn(false).when(executorMock).awaitTermination(1, TimeUnit.MINUTES);
+        doReturn(true).when(executorMock).awaitTermination(30, TimeUnit.SECONDS);
+
+        assertDoesNotThrow(() -> instance.onShutdown());
+
+        verify(executorMock, times(1)).shutdown();
+        verify(executorMock, times(2)).awaitTermination(anyLong(), any());
+        verify(executorMock, times(1)).shutdownNow();
+    }
+
+    @Test
+    void onShutdown_WhenInterruptedWhileAwaitingTermination_ThenShouldNotPropagateException() throws InterruptedException {
+        doThrow(InterruptedException.class).when(executorMock).awaitTermination(anyLong(), any());
+
+        assertDoesNotThrow(() -> instance.onShutdown());
+
+        verify(executorMock, times(1)).shutdown();
+        verify(executorMock, times(1)).awaitTermination(anyLong(), any());
     }
 
     private JobConfig createJobConfig() {

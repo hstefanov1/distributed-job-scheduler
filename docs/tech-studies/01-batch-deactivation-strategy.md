@@ -67,7 +67,7 @@ expired.forEach(m -> m.status=INACTIVE); // no explicit save call needed (hibern
 
 **Disadvantages**
 
-- Slowest option: one SELECT, then individual UPDATEs per row.
+- Slowest option: one SELECT, then individual UPDATES per row.
 - Higher memory usage: up to 500 full entities loaded into memory per page, vs. zero materialization in the bulk
   approaches.
 - More implementation complexity: needs pagination logic to cover all pages, plus ignore-on-`OptimisticLockException`
