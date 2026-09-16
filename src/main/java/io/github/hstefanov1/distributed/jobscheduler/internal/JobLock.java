@@ -34,7 +34,7 @@ class JobLock {
      * @return {@code true} if the lock is held by this instance (newly acquired or already held),
      * {@code false} if it's currently held elsewhere
      */
-    public synchronized boolean tryAcquire(@NonNull JobName key) {
+    public boolean tryAcquire(@NonNull JobName key) {
         if (locks.containsKey(key)) {
             log.debug("Lock for job [{}] already acquired", key);
             return true;
@@ -61,7 +61,7 @@ class JobLock {
         return true;
     }
 
-    synchronized void release(@NonNull JobName key) {
+    void release(@NonNull JobName key) {
         Connection connection = locks.remove(key);
         if (connection == null) {
             log.warn("Lock for job [{}] unreleased (held by another instance)", key);
