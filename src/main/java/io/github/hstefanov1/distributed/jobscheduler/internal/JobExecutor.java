@@ -65,6 +65,9 @@ class JobExecutor {
             return;
         }
 
+        // TODO: Do this check before all. Even before the semaphore, because it will avoid
+        //  consulting the advisory lock and blocking the semaphore only to find that the job is already running.
+        //  The memory structure is thread-safe, so there is no issue with doing this check before all.
         if (!running.add(jobName)) {
             log.debug("Job [{}] still in progress (run skipped)", jobName);
             return;

@@ -35,6 +35,12 @@ class JobLock {
      * {@code false} if it's currently held elsewhere
      */
     public boolean tryAcquire(@NonNull JobName key) {
+        // TODO: I need to refactor this, because the connection may silently die due to idle timeout, NAT/firewall reset,
+        //  network blip, etc., and without the code touching it at that moment, Postgres may have already released
+        //  the advisory lock, and my map doesn't know that, because this check will always return true.
+        //  Result: the real lock may be gone, and another replica could legitimately have taken over, but the current
+        //  replica will never notice the connection is dead.
+        //  I need some liveness check!!
         if (locks.containsKey(key)) {
             log.debug("Lock for job [{}] already acquired", key);
             return true;
