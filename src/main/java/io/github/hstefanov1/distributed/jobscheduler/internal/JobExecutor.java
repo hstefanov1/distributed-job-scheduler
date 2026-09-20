@@ -15,6 +15,9 @@ import java.util.concurrent.*;
 import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.MAX_CONCURRENT_JOBS;
 import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.OWNER_ID;
 
+/**
+ * Executes scheduled jobs asynchronously using virtual threads while managing system-wide concurrency limits.
+ */
 @Slf4j
 @ApplicationScoped
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
@@ -25,13 +28,15 @@ class JobExecutor {
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     private final JobLock lock;
-    private final JobFactory factory;
+    private final JobRegistry registry;
     private final JobRepository repository;
     private final Set<Long> running = ConcurrentHashMap.newKeySet();
 
     /**
      * Submits the job for asynchronous execution on a virtual thread,
      * respecting a maximum concurrency of {@value JobConstants#MAX_CONCURRENT_JOBS} jobs.
+     * <p>
+     * If the job is already active/running on this replica, the submission is skipped to prevent overlap.
      *
      * @param job the job config to execute
      */
@@ -65,6 +70,8 @@ class JobExecutor {
      * Attempts to acquire a PostgreSQL advisory lock for this job. If acquired, the lock is held for
      * the lifetime of this instance and the job is started. If another replica already holds it, the
      * job does not run on this instance.
+     *
+     * @param job the job config to run
      */
     void execute(JobConfig job) {
         try {
@@ -79,7 +86,7 @@ class JobExecutor {
             // start the job business logic
             JobStatus status = JobStatus.FAILED;
             try {
-                JobProcessor processor = factory.get(job.jobName);
+                JobProcessor processor = registry.get(job.jobName);
                 JobContext context = createContext(job);
                 log.debug("Job [{}] initialized", job);
                 processor.process(context);
@@ -93,6 +100,12 @@ class JobExecutor {
         }
     }
 
+    /**
+     * Creates the execution context containing runtime environment variables for the target {@link JobProcessor}.
+     *
+     * @param job the job config to build the context from
+     * @return a new {@link JobContext} instance
+     */
     JobContext createContext(JobConfig job) {
         return new JobContext(
                 job.jobName,
@@ -101,10 +114,18 @@ class JobExecutor {
         );
     }
 
+    /**
+     * Retrieves an immutable snapshot of job database IDs currently running on this replica.
+     *
+     * @return a read-only set of active job IDs
+     */
     Set<Long> getRunning() {
         return Set.copyOf(running);
     }
 
+    /**
+     * Gracefully shuts down the executor service upon application shutdown.
+     */
     @Shutdown
     void onShutdown() {
         //

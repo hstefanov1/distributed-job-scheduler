@@ -3,7 +3,7 @@ package io.github.hstefanov1.distributed.jobscheduler.api;
 /**
  * Contract for a unit of work that can be scheduled and executed by the system.
  * <p>
- * The system automatically discovers implementations and dispatches them via {@code jobName()} when their
+ * The system automatically discovers implementations and dispatches them via {@code name()} when their
  * corresponding {@code JobConfig} becomes due.
  * <p>
  * Each processor should be stateless and safe to invoke repeatedly on a schedule.

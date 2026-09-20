@@ -1,44 +1,44 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
-import io.quarkus.scheduler.Scheduled;
+import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
+import io.github.hstefanov1.distributed.jobscheduler.api.JobProcessor;
 import jakarta.enterprise.context.ApplicationScoped;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
+import jakarta.enterprise.inject.Instance;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.*;
-
+/**
+ * Registry with all job processors.
+ */
 @Slf4j
 @ApplicationScoped
-@AllArgsConstructor(access = AccessLevel.PACKAGE)
 class JobRegistry {
 
-    private final JobExecutor executor;
-    private final JobRepository repository;
+    private final Map<JobName, JobProcessor> processors;
 
-    @Scheduled(delay = SCHEDULED_DELAY, every = DISPATCH_JOBS_EVERY)
-    void dispatchJobs() {
-        repository.claimDueJobs().forEach(executor::submit);
+    JobRegistry(Instance<JobProcessor> instances) {
+        this.processors = instances.stream().collect(Collectors.toMap(JobProcessor::name, Function.identity()));
     }
 
-    @Scheduled(delay = SCHEDULED_DELAY, every = CLEANUP_ORPHANED_JOBS_EVERY)
-    void cleanupOrphanedJobs() {
-        repository.cleanupOrphanedJobs();
-    }
-
-    @Scheduled(delay = SCHEDULED_DELAY, every = REPORT_SUSPICIOUS_JOBS_EVERY)
-    void reportSuspiciousJobs() {
-        Set<Long> running = executor.getRunning();
-        if (running.isEmpty()) {
-            return;
+    /**
+     * Resolves the concrete {@link JobProcessor} implementation associated with the given {@link JobName}.
+     *
+     * @param jobName the name of the job to fetch the processor for
+     * @return the registered {@link JobProcessor} instance
+     * @throws IllegalStateException if no matching processor implementation is found in the CDI context
+     */
+    JobProcessor get(JobName jobName) {
+        JobProcessor processor = processors.get(jobName);
+        if (processor == null) {
+            // to fix that, make sure:
+            // 1) your processor implements the interface JobProcessor
+            // 2) your processor#name() returns the expected JobName
+            // 3) your processor is public and application-scoped
+            throw new IllegalStateException("No job processor registered for job name [%s]".formatted(jobName));
         }
-        List<JobConfig> suspicious = repository.findSuspiciousJobs(running);
-        for (JobConfig job : suspicious) {
-            log.warn("Job [{}] exceeded max runtime [{} min] (potential hang)", job, MAX_JOB_RUNTIME.toMinutes());
-            // add your metric/alert here
-        }
+        return processor;
     }
 }

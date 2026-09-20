@@ -34,7 +34,7 @@ class JobExecutorTest {
     private JobLock lockMock;
 
     @Mock
-    private JobFactory factoryMock;
+    private JobRegistry factoryMock;
 
     @Mock
     private JobRepository repositoryMock;

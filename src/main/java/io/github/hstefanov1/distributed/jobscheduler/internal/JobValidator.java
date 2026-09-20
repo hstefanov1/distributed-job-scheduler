@@ -10,13 +10,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Validates the integrity of the job scheduler configuration and processors on application startup.
+ */
 @Slf4j
 @ApplicationScoped
 @AllArgsConstructor(access = lombok.AccessLevel.PACKAGE)
 class JobValidator {
 
-    private final JobFactory factory;
+    private final JobRegistry registry;
 
+    /**
+     * Validates that all defined {@link JobName} constants are assigned unique integer identifiers.
+     * <p>
+     * Unique IDs are required to prevent lock collisions, as these integers are passed directly to PostgreSQL
+     * as keys for advisory locking.
+     *
+     * @throws IllegalStateException if a duplicate job identifier is found
+     */
     void validateJobNameIds() {
         log.info("Validating job name IDs");
         Set<Integer> ids = new HashSet<>();
@@ -27,6 +38,14 @@ class JobValidator {
         }
     }
 
+    /**
+     * Validates that a matching {@code JobProcessor} CDI bean is registered for every job configuration row in the database.
+     * <p>
+     * This ensures the application will not fail mid-execution due to a missing or unregistered processor bean
+     * when a scheduled job becomes due.
+     *
+     * @throws IllegalStateException if the database lookup fails or if any job config points to an unregistered processor
+     */
     void validateJobProcessors() {
         log.info("Validating job processors");
 
@@ -42,10 +61,15 @@ class JobValidator {
 
         // validate processors for each job
         for (JobConfig job : jobs) {
-            factory.get(job.jobName); // throws exception if processor not found
+            registry.get(job.jobName); // throws exception if processor not found
         }
     }
 
+    /**
+     * Executes the validation checks automatically during application startup.
+     * <p>
+     * If any validation fails, an exception is thrown, preventing the application from starting in an invalid state.
+     */
     @Startup
     void onStart() {
         validateJobNameIds();

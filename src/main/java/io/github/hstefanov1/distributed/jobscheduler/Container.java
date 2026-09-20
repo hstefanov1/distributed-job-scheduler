@@ -15,7 +15,7 @@ public final class Container {
     private static final String DOCKER_CMD = "docker";
 
     /**
-     * Checks whether a container runtime is available, and throws if none is found.
+     * Checks whether a container runtime is available and throws if none is found.
      *
      * @throws IllegalStateException if no container runtime is detected while running under the
      *                               {@code local} profile

@@ -28,12 +28,20 @@ import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstant
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 class JobLock {
 
+    /**
+     * Data source used to get dedicated database connections for advisory locking.
+     */
     private final DataSource dataSource;
+
+    /**
+     * Map of currently acquired job locks and their associated active database connections.
+     */
     private final ConcurrentHashMap<JobName, Connection> locks = new ConcurrentHashMap<>();
 
     /**
      * Attempts to acquire the lock for the given job name, non-blocking.
      *
+     * @param jobName the name of the job to lock
      * @return {@code true} if the lock is held by this instance (newly acquired or already held),
      * {@code false} if it's currently held elsewhere
      */
@@ -64,6 +72,11 @@ class JobLock {
         return true;
     }
 
+    /**
+     * Releases the active lock for the given job name.
+     *
+     * @param jobName the name of the job to unlock
+     */
     void release(@NonNull JobName jobName) {
         Connection connection = locks.remove(jobName);
         if (connection == null) {
@@ -80,6 +93,15 @@ class JobLock {
         log.debug("Lock for job [{}] released", jobName);
     }
 
+    /**
+     * Checks if the lock is currently considered active and held locally by this replica.
+     * <p>
+     * Validates both the tracking state and the physical connection's health. If the connection is
+     * closed or invalid, the lock tracker is cleaned up and {@code false} is returned.
+     *
+     * @param jobName the name of the job to check
+     * @return {@code true} if the lock is held and the connection is healthy; {@code false} otherwise
+     */
     boolean isAlreadyAcquired(JobName jobName) {
         Connection connection = locks.get(jobName);
         if (connection == null) {
@@ -97,6 +119,16 @@ class JobLock {
         return false;
     }
 
+    /**
+     * Low-level helper executing PostgreSQL's {@code pg_try_advisory_lock} function.
+     * <p>
+     * Acquires a session-level double-key lock using the system-wide namespace and the job's stable ID.
+     *
+     * @param connection the database connection to run the query on
+     * @param key        the unique, stable identifier of the job
+     * @return {@code true} if the PostgreSQL advisory lock was successfully acquired; {@code false} otherwise
+     * @throws IllegalStateException if a database access error occurs during query execution
+     */
     boolean tryAdvisoryLock(Connection connection, int key) {
         String sql = "SELECT pg_try_advisory_lock(?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -111,6 +143,15 @@ class JobLock {
         }
     }
 
+    /**
+     * Low-level helper executing PostgreSQL's {@code pg_advisory_unlock} function.
+     * <p>
+     * Explicitly unlocks the session-level advisory lock using the namespace and job ID.
+     *
+     * @param connection the database connection to run the query on
+     * @param key        the unique, stable identifier of the job
+     * @throws IllegalStateException if a database access error occurs during query execution
+     */
     void advisoryUnlock(Connection connection, int key) {
         String sql = "SELECT pg_advisory_unlock(?, ?)";
         try {
@@ -124,6 +165,12 @@ class JobLock {
         }
     }
 
+    /**
+     * Obtains a raw SQL {@link Connection} from the configured {@link DataSource}.
+     *
+     * @return a new active database connection
+     * @throws IllegalStateException if a database access error occurs
+     */
     Connection getConnection() {
         try {
             return dataSource.getConnection();
@@ -132,6 +179,11 @@ class JobLock {
         }
     }
 
+    /**
+     * Safely closes the given database connection, swallowing any {@link SQLException}.
+     *
+     * @param connection the connection to close, may be {@code null}
+     */
     void closeSafely(Connection connection) {
         if (connection != null) {
             try {

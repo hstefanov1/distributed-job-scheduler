@@ -18,6 +18,12 @@ public enum JobName {
     EXAMPLE_SLOW(1),
     EXAMPLE_FAST(2);
 
+    /**
+     * The stable, unique integer identifier for this job.
+     * <p>
+     * This ID is critical since it serves as a key for PostgreSQL advisory lock
+     * preventing concurrent execution of the same job across scheduler replicas.
+     */
     @Getter
     final int id;
 }

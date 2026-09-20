@@ -6,6 +6,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
 
+/**
+ * Shared constant values and system-wide configuration defaults for the distributed job scheduler.
+ */
 @NoArgsConstructor(access = lombok.AccessLevel.PRIVATE)
 class JobConstants {
 
@@ -28,6 +31,14 @@ class JobConstants {
     static final Duration MAX_JOB_RUNTIME = Duration.ofMinutes(30); // watchdog threshold for stuck-job detection
     static final Duration CLEANUP_ORPHANED_AFTER = Duration.ofHours(2); // well above MAX_JOB_RUNTIME
 
+    /**
+     * Resolves the unique identifier (owner ID) of the current scheduler replica instance.
+     * <p>
+     * It attempts to read the environment variables (like {@code HOSTNAME} standard in Kubernetes),
+     * falling back to combining the local machine's network hostname and the active OS Process ID (PID).
+     *
+     * @return a non-null, unique String identifying this specific process/host
+     */
     private static String resolveOwnerId() {
         String podName = System.getenv("HOSTNAME"); // k8s sets this by default
         if (podName != null && !podName.isBlank()) {
