@@ -2,6 +2,7 @@ package io.github.hstefanov1.distributed.jobscheduler.internal;
 
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -14,30 +15,60 @@ import java.util.Set;
 
 import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.*;
 
+/**
+ * Handles all transactional database interactions and query operations for job config and scheduling state.
+ */
 @Slf4j
 @ApplicationScoped
 @NoArgsConstructor(access = lombok.AccessLevel.PACKAGE)
 class JobRepository {
 
     /**
-     * Claims jobs that are enabled and due to run.
+     * Claims active, enabled jobs that are due to run.
      *
-     * @return jobs needed to run (max. of {@value JobConstants#MAX_CONCURRENT_JOBS})
+     * @return jobs eligible to run, capped at {@value JobConstants#MAX_CONCURRENT_JOBS}
      */
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
     List<JobConfig> claimDueJobs() {
         String sql = "enabled = true and ownerId is null and nextRunAt <= now() order by nextRunAt";
-        List<JobConfig> list = JobConfig.<JobConfig>find(sql).page(Page.ofSize(MAX_CONCURRENT_JOBS)).list();
+
+        List<JobConfig> list = JobConfig.<JobConfig>find(sql)
+                .page(Page.ofSize(MAX_CONCURRENT_JOBS))
+
+                // tells postgresql that the transaction intends to update rows
+                // if another transaction tries to read/write the same rows, it will wait until this transaction ends
+                .withLock(LockModeType.PESSIMISTIC_WRITE) // appends FOR UPDATE to the query
+
+                // skips the already locked rows
+                // ref: https://docs.hibernate.org/orm/6.5/userguide/html_single/#locking-LockMode
+                .withHint("jakarta.persistence.lock.timeout", -2) // appends SKIP LOCKED to the query
+
+                .list();
+
         if (!list.isEmpty()) {
             log.debug("Claimed [{}] due jobs", list.size());
         }
         return list;
     }
 
+    /**
+     * Finds jobs that are currently running on the local instance but have exceeded
+     * the maximum permitted runtime threshold defined by {@link JobConstants#MAX_JOB_RUNTIME}.
+     *
+     * @param jobIds the set of database IDs of jobs currently executing on the local instance
+     * @return a list of jobs considered to be potentially hanging/stuck
+     */
     List<JobConfig> findSuspiciousJobs(@NonNull Set<Long> jobIds) {
         Instant maxRunTime = Instant.now().minus(JobConstants.MAX_JOB_RUNTIME);
         return JobConfig.list("id in ?1 and startedAt < ?2", jobIds, maxRunTime);
     }
 
+    /**
+     * Marks a job as actively running by setting its start time and recording the current replica
+     * instance as owner ID.
+     *
+     * @param jobId the database ID of the job config to acquire
+     */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     void startJob(long jobId) {
         JobConfig job = JobConfig.<JobConfig>find("id = ?1", jobId).firstResult();
@@ -85,6 +116,12 @@ class JobRepository {
         log.debug("Job [{}] rescheduled to [{}]", job, job.nextRunAt.truncatedTo(ChronoUnit.SECONDS));
     }
 
+    /**
+     * Detects and recovers orphaned jobs—jobs marked as running with an active owner and start time,
+     * but whose start time has exceeded the configured cleanup threshold {@link JobConstants#CLEANUP_ORPHANED_AFTER}.
+     * <p>
+     * Clears their ownership and start time so that they can be claimed and executed again.
+     */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     void cleanupOrphanedJobs() {
         String sql = "ownerId = null, startedAt = null where ownerId is not null and startedAt < ?1";

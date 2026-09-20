@@ -1,15 +1,23 @@
 package io.github.hstefanov1.distributed.jobscheduler.api;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 /**
- * Identifies each job known to the scheduling system.
+ * Registry of all supported job types in the distributed scheduler.
  * <p>
- * Each enum corresponds to a {@code jobName} value in the {@code JobConfig} table.
+ * This enumeration maps distinct tasks to their unique execution processors
+ * and provides stable and unique integer identifiers required for PostgreSQL advisory locking.
  * <p>
  * Adding a new job requires a new constant here, a new {@code JobProcessor} and a
  * matching {@code JobConfig} row.
  */
+@AllArgsConstructor
 public enum JobName {
 
-    EXAMPLE_SLOW,
-    EXAMPLE_FAST
+    EXAMPLE_SLOW(1),
+    EXAMPLE_FAST(2);
+
+    @Getter
+    final int id;
 }

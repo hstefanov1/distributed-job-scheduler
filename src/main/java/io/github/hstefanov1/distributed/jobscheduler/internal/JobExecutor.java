@@ -33,7 +33,7 @@ class JobExecutor {
      * Submits the job for asynchronous execution on a virtual thread,
      * respecting a maximum concurrency of {@value JobConstants#MAX_CONCURRENT_JOBS} jobs.
      *
-     * @param job the job to execute
+     * @param job the job config to execute
      */
     void submit(@NonNull JobConfig job) {
         if (!running.add(job.id)) {

@@ -16,6 +16,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.LOCK_NAMESPACE;
+
 /**
  * Manages PostgreSQL session-level advisory locks (exclusive, non-blocking) keyed by {@link JobName}.
  * <p>
@@ -30,56 +32,56 @@ class JobLock {
     private final ConcurrentHashMap<JobName, Connection> locks = new ConcurrentHashMap<>();
 
     /**
-     * Attempts to acquire the lock for the given key, non-blocking.
+     * Attempts to acquire the lock for the given job name, non-blocking.
      *
      * @return {@code true} if the lock is held by this instance (newly acquired or already held),
      * {@code false} if it's currently held elsewhere
      */
-    boolean tryAcquire(@NonNull JobName key) {
-        if (isAlreadyAcquired(key)) {
-            log.debug("Lock for job [{}] already acquired", key);
+    boolean tryAcquire(@NonNull JobName jobName) {
+        if (isAlreadyAcquired(jobName)) {
+            log.debug("Lock for job [{}] already acquired", jobName);
             return true;
         }
 
-        log.debug("Lock for job [{}] being acquired", key);
+        log.debug("Lock for job [{}] being acquired", jobName);
         Connection connection = getConnection();
         boolean locked;
         try {
-            locked = tryAdvisoryLock(connection, key);
+            locked = tryAdvisoryLock(connection, jobName.getId());
         } catch (RuntimeException e) {
             closeSafely(connection); // avoid connection leak if any exception
-            log.warn("Lock for job [{}] failed acquiring", key, e);
+            log.warn("Lock for job [{}] failed acquiring", jobName, e);
             throw e;
         }
-        log.debug("Lock for job [{}] {}", key, locked ? "acquired" : "not acquired");
+        log.debug("Lock for job [{}] {}", jobName, locked ? "acquired" : "not acquired");
 
         if (!locked) {
             closeSafely(connection); // unable to acquire lock then close connection
             return false;
         }
 
-        locks.put(key, connection); // keep connection open to held lock
+        locks.put(jobName, connection); // keep connection open to held lock
         return true;
     }
 
-    void release(@NonNull JobName key) {
-        Connection connection = locks.remove(key);
+    void release(@NonNull JobName jobName) {
+        Connection connection = locks.remove(jobName);
         if (connection == null) {
-            log.warn("Lock for job [{}] unreleased (held by another instance)", key);
+            log.warn("Lock for job [{}] unreleased (held by another instance)", jobName);
             return;
         }
 
-        log.debug("Lock for job [{}] being released", key);
+        log.debug("Lock for job [{}] being released", jobName);
         try {
-            advisoryUnlock(connection, key);
+            advisoryUnlock(connection, jobName.getId());
         } finally {
             closeSafely(connection);
         }
-        log.debug("Lock for job [{}] released", key);
+        log.debug("Lock for job [{}] released", jobName);
     }
 
-    boolean isAlreadyAcquired(JobName key) {
-        Connection connection = locks.get(key);
+    boolean isAlreadyAcquired(JobName jobName) {
+        Connection connection = locks.get(jobName);
         if (connection == null) {
             return false;
         }
@@ -87,18 +89,19 @@ class JobLock {
             if (connection.isValid(1)) {
                 return true;
             }
-            log.warn("Lock for job [{}] has been lost, caused by: connection no longer valid", key);
+            log.warn("Lock for job [{}] has been lost, caused by: connection no longer valid", jobName);
         } catch (SQLException e) {
-            log.warn("Lock for job [{}] has been lost, caused by: {}", key, e.getMessage());
+            log.warn("Lock for job [{}] has been lost, caused by: {}", jobName, e.getMessage());
         }
-        closeSafely(locks.remove(key));
+        closeSafely(locks.remove(jobName));
         return false;
     }
 
-    boolean tryAdvisoryLock(Connection connection, JobName key) {
-        String sql = "SELECT pg_try_advisory_lock(hashtext(?))";
+    boolean tryAdvisoryLock(Connection connection, int key) {
+        String sql = "SELECT pg_try_advisory_lock(?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, key.name());
+            ps.setInt(1, LOCK_NAMESPACE);
+            ps.setInt(2, key);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return rs.getBoolean(1);
@@ -108,11 +111,12 @@ class JobLock {
         }
     }
 
-    void advisoryUnlock(Connection connection, JobName key) {
-        String sql = "SELECT pg_advisory_unlock(hashtext(?))";
+    void advisoryUnlock(Connection connection, int key) {
+        String sql = "SELECT pg_advisory_unlock(?, ?)";
         try {
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                ps.setString(1, key.name());
+                ps.setInt(1, LOCK_NAMESPACE);
+                ps.setInt(2, key);
                 ps.execute();
             }
         } catch (SQLException e) {
