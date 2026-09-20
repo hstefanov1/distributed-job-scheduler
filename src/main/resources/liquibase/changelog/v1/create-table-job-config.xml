@@ -24,11 +24,10 @@
                     remarks="Owner identifier currently responsible for this job.">
                 <constraints nullable="true"/>
             </column>
-            <column name="owner_heartbeat_at"
+            <column name="started_at"
                     type="TIMESTAMP WITH TIME ZONE"
-                    defaultValueComputed="'epoch'"
-                    remarks="Last time the owner confirmed it is alive, in UTC. Used to detect dead owners and reclaim the job.">
-                <constraints nullable="false"/>
+                    remarks="Date and time the job officially started processing business logic, in UTC.">
+                <constraints nullable="true"/>
             </column>
             <column name="batch_size"
                     type="INT"
@@ -56,13 +55,13 @@
             </column>
             <column name="last_run_at"
                     type="TIMESTAMP WITH TIME ZONE"
-                    remarks="Date and time the job last completed successfully, in UTC.">
+                    remarks="Date and time the job last run, in UTC.">
                 <constraints nullable="true"/>
             </column>
-            <column name="version"
-                    type="BIGINT"
-                    defaultValueNumeric="0"
-                    remarks="Version number used for optimistic locking.">
+            <column name="last_run_status"
+                    type="VARCHAR(255)"
+                    defaultValue="PENDING"
+                    remarks="Status of the last job run.">
                 <constraints nullable="false"/>
             </column>
         </createTable>

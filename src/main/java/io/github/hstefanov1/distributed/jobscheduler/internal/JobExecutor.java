@@ -1,7 +1,6 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
 import io.github.hstefanov1.distributed.jobscheduler.api.JobContext;
-import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobProcessor;
 import io.quarkus.runtime.Shutdown;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -13,36 +12,47 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Set;
 import java.util.concurrent.*;
 
+import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.MAX_CONCURRENT_JOBS;
+import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.OWNER_ID;
+
 @Slf4j
 @ApplicationScoped
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 class JobExecutor {
 
-    // parallel jobs configs
-    private static final int MAX_CONCURRENT_JOBS = 10;
+    // parallel job configs
     private final Semaphore semaphore = new Semaphore(MAX_CONCURRENT_JOBS);
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     private final JobLock lock;
     private final JobFactory factory;
     private final JobRepository repository;
-    private final Set<JobName> running = ConcurrentHashMap.newKeySet();
+    private final Set<Long> running = ConcurrentHashMap.newKeySet();
 
     /**
      * Submits the job for asynchronous execution on a virtual thread,
-     * respecting a maximum concurrency of {@value #MAX_CONCURRENT_JOBS} jobs.
+     * respecting a maximum concurrency of {@value JobConstants#MAX_CONCURRENT_JOBS} jobs.
      *
      * @param job the job to execute
      */
-    public void submit(@NonNull JobConfig job) {
+    void submit(@NonNull JobConfig job) {
+        if (!running.add(job.id)) {
+            log.debug("Job [{}] still in progress (run skipped)", job);
+            return;
+        }
+
+        // submit to a virtual thread
+        log.debug("Job [{}] starting", job);
         executor.submit(() -> {
             boolean acquired = false;
             try {
                 semaphore.acquire();
                 acquired = true;
                 execute(job);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                log.error("Job [{}] failed with an unexpected exception", job, e);
             } finally {
                 if (acquired) {
                     semaphore.release();
@@ -57,45 +67,42 @@ class JobExecutor {
      * job does not run on this instance.
      */
     void execute(JobConfig job) {
-        JobName jobName = job.jobName;
-        log.debug("Job [{}] starting", jobName);
-
-        if (!lock.tryAcquire(jobName)) {
-            log.debug("Job [{}] aborted (lock is held by another instance)", jobName);
-            return;
-        }
-
-        // TODO: Do this check before all. Even before the semaphore, because it will avoid
-        //  consulting the advisory lock and blocking the semaphore only to find that the job is already running.
-        //  The memory structure is thread-safe, so there is no issue with doing this check before all.
-        if (!running.add(jobName)) {
-            log.debug("Job [{}] still in progress (run skipped)", jobName);
-            return;
-        }
-
-        start(job);
-    }
-
-    void start(JobConfig job) {
-        JobName jobName = job.jobName;
         try {
-            JobProcessor processor = factory.get(jobName);
-            JobContext context = createContext(job);
-            log.debug("Job [{}] started", jobName);
-            processor.process(context);
+            if (!lock.tryAcquire(job.jobName)) {
+                log.debug("Job [{}] aborted (lock is held by another instance)", job);
+                return;
+            }
+
+            // assign ownerId and startAt fields
+            repository.startJob(job.id);
+
+            // start the job business logic
+            JobStatus status = JobStatus.FAILED;
+            try {
+                JobProcessor processor = factory.get(job.jobName);
+                JobContext context = createContext(job);
+                log.debug("Job [{}] initialized", job);
+                processor.process(context);
+                status = JobStatus.COMPLETED;
+            } finally {
+                repository.finishJob(job.id, status);
+                log.debug("Job [{}] finished with status [{}]", job, status);
+            }
         } finally {
-            repository.completeJob(job.id);
-            running.remove(jobName);
-            log.debug("Job [{}] completed", jobName);
+            running.remove(job.id);
         }
     }
 
     JobContext createContext(JobConfig job) {
         return new JobContext(
                 job.jobName,
-                job.ownerId,
+                OWNER_ID,
                 job.batchSize
         );
+    }
+
+    Set<Long> getRunning() {
+        return Set.copyOf(running);
     }
 
     @Shutdown

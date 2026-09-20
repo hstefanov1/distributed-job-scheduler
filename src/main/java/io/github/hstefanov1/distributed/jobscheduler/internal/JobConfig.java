@@ -21,25 +21,29 @@ class JobConfig extends PanacheEntityBase {
     @Column(name = "owner_id")
     public String ownerId;
 
-    @Column(name = "owner_heartbeat_at", nullable = false)
-    public Instant ownerHeartbeatAt;
+    @Column(name = "started_at")
+    public Instant startedAt;
 
     @Column(name = "batch_size", nullable = false)
-    public Integer batchSize;
+    public int batchSize = 100;
 
     @Column(name = "interval_seconds", nullable = false)
-    public Integer intervalSeconds;
+    public int intervalSeconds = 300;
 
     @Column(name = "enabled", nullable = false)
-    public Boolean enabled;
+    public boolean enabled = true;
 
     @Column(name = "next_run_at", nullable = false)
-    public Instant nextRunAt;
+    public Instant nextRunAt = Instant.now();
 
     @Column(name = "last_run_at")
     public Instant lastRunAt;
 
-    @Version
-    @Column(name = "version", nullable = false)
-    public Long version = 0L;
+    @Column(name = "last_run_status", nullable = false)
+    public JobStatus lastRunStatus = JobStatus.PENDING;
+
+    @Override
+    public String toString() {
+        return this.jobName.name();
+    }
 }

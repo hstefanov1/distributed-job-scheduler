@@ -43,7 +43,9 @@ class JobFactory {
         try {
             jobs = JobConfig.<JobConfig>findAll().list();
         } catch (Exception e) {
-            throw new IllegalStateException("A job name may refer to a non-existent enum value", e);
+            String error = "Failed to load job configs at startup";
+            String fix = "Check database connectivity and that every job_name value matches a JobName enum constant";
+            throw new IllegalStateException("%s. %s".formatted(error, fix), e);
         }
 
         // validate processors for each job

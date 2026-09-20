@@ -13,6 +13,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -34,14 +35,8 @@ class JobLock {
      * @return {@code true} if the lock is held by this instance (newly acquired or already held),
      * {@code false} if it's currently held elsewhere
      */
-    public boolean tryAcquire(@NonNull JobName key) {
-        // TODO: I need to refactor this, because the connection may silently die due to idle timeout, NAT/firewall reset,
-        //  network blip, etc., and without the code touching it at that moment, Postgres may have already released
-        //  the advisory lock, and my map doesn't know that, because this check will always return true.
-        //  Result: the real lock may be gone, and another replica could legitimately have taken over, but the current
-        //  replica will never notice the connection is dead.
-        //  I need some liveness check!!
-        if (locks.containsKey(key)) {
+    boolean tryAcquire(@NonNull JobName key) {
+        if (isAlreadyAcquired(key)) {
             log.debug("Lock for job [{}] already acquired", key);
             return true;
         }
@@ -53,7 +48,7 @@ class JobLock {
             locked = tryAdvisoryLock(connection, key);
         } catch (RuntimeException e) {
             closeSafely(connection); // avoid connection leak if any exception
-            log.warn("Lock for job [{}] failed acquiring", key);
+            log.warn("Lock for job [{}] failed acquiring", key, e);
             throw e;
         }
         log.debug("Lock for job [{}] {}", key, locked ? "acquired" : "not acquired");
@@ -81,6 +76,23 @@ class JobLock {
             closeSafely(connection);
         }
         log.debug("Lock for job [{}] released", key);
+    }
+
+    boolean isAlreadyAcquired(JobName key) {
+        Connection connection = locks.get(key);
+        if (connection == null) {
+            return false;
+        }
+        try {
+            if (connection.isValid(1)) {
+                return true;
+            }
+            log.warn("Lock for job [{}] has been lost, caused by: connection no longer valid", key);
+        } catch (SQLException e) {
+            log.warn("Lock for job [{}] has been lost, caused by: {}", key, e.getMessage());
+        }
+        closeSafely(locks.remove(key));
+        return false;
     }
 
     boolean tryAdvisoryLock(Connection connection, JobName key) {
@@ -135,6 +147,7 @@ class JobLock {
     @Shutdown
     void onShutdown() {
         log.debug("Releasing [{}] job locks", locks.size());
-        locks.keySet().forEach(this::release);
+        ArrayList<JobName> copy = new ArrayList<>(locks.keySet());
+        copy.forEach(this::release);
     }
 }

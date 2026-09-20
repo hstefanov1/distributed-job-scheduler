@@ -1,106 +1,97 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
-import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
+import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
+
+import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.*;
 
 @Slf4j
 @ApplicationScoped
 @NoArgsConstructor(access = lombok.AccessLevel.PACKAGE)
 class JobRepository {
 
-    private static final String OWNER_ID = resolveOwnerId();
-
-    private static String resolveOwnerId() {
-        String podName = System.getenv("HOSTNAME"); // k8s sets this by default
-        if (podName != null && !podName.isBlank()) {
-            return podName;
-        }
-        try {
-            String hostname = InetAddress.getLocalHost().getHostName();
-            long pid = ProcessHandle.current().pid();
-            return "local-%s-pid#%s".formatted(hostname, pid);
-        } catch (UnknownHostException e) {
-            return "local-unknown-pid#-1";
-        }
-    }
-
     /**
      * Claims jobs that are enabled and due to run.
      *
-     * @param batchLimit maximum number of jobs to claim in this call
-     * @return jobs needed to run
+     * @return jobs needed to run (max. of {@value JobConstants#MAX_CONCURRENT_JOBS})
      */
-    @Transactional(Transactional.TxType.REQUIRES_NEW)
-    public List<JobConfig> claimJobs(int batchLimit) {
-        // claims a batch of enabled jobs that are due to run and whose current
-        // ownership is stale. SKIP LOCKED allows concurrent schedulers to claim
-        // different jobs without waiting on jobs currently locked by another scheduler.
-        String sql = """
-                UPDATE scheduler.job_config
-                SET owner_id = :ownerId,
-                    owner_heartbeat_at = now(),
-                    version = version + 1
-                WHERE id IN (
-                    SELECT id
-                    FROM scheduler.job_config
-                    WHERE enabled = true
-                      AND next_run_at <= now()
-                      AND owner_heartbeat_at <= now() - interval '2 minutes'
-                    ORDER BY next_run_at
-                    LIMIT :batchLimit
-                    FOR UPDATE SKIP LOCKED
-                )
-                RETURNING id
-                """;
-        List<?> rows = JobConfig.getEntityManager()
-                .createNativeQuery(sql)
-                .setParameter("ownerId", OWNER_ID)
-                .setParameter("batchLimit", batchLimit)
-                .getResultList();
-
-        List<Long> jobIds = rows.stream().map(r -> ((Number) r).longValue()).toList();
-        if (!jobIds.isEmpty()) {
-            log.debug("Claimed [{}] due jobs for owner [{}]", jobIds.size(), OWNER_ID);
+    List<JobConfig> claimDueJobs() {
+        String sql = "enabled = true and ownerId is null and nextRunAt <= now() order by nextRunAt";
+        List<JobConfig> list = JobConfig.<JobConfig>find(sql).page(Page.ofSize(MAX_CONCURRENT_JOBS)).list();
+        if (!list.isEmpty()) {
+            log.debug("Claimed [{}] due jobs", list.size());
         }
+        return list;
+    }
 
-        return JobConfig.findByIds(jobIds);
+    List<JobConfig> findSuspiciousJobs(@NonNull Set<Long> jobIds) {
+        Instant maxRunTime = Instant.now().minus(JobConstants.MAX_JOB_RUNTIME);
+        return JobConfig.list("id in ?1 and startedAt < ?2", jobIds, maxRunTime);
+    }
+
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    void startJob(long jobId) {
+        JobConfig job = JobConfig.<JobConfig>find("id = ?1", jobId).firstResult();
+        if (job == null) {
+            log.warn("Owner [{}] unable to acquire job [{}] (row no longer exists)", OWNER_ID, jobId);
+            return;
+        }
+        job.startedAt = Instant.now();
+        job.ownerId = OWNER_ID;
+        job.persist();
+        log.debug("Owner [{}] acquired job [{}]", OWNER_ID, job);
     }
 
     /**
-     * Marks the job as completed, schedules its next eligible run, and releases its ownership.
+     * Finishes the job, schedules its next eligible run, and releases its ownership.
      *
-     * @param jobId id of the job that finished running
+     * @param jobId  id of the job that finished running
+     * @param status the status of the job
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
-    public void completeJob(long jobId) {
+    void finishJob(long jobId, @NonNull JobStatus status) {
         JobConfig job = JobConfig.<JobConfig>find("id = ?1 and ownerId = ?2", jobId, OWNER_ID).firstResult();
 
         // warn user about unexpected behavior
         if (job == null) {
-            log.warn("Could not complete job [{}] with owner [{}]. " +
+            log.warn("Could not finish job [{}] with owner [{}]. " +
                     "This is unexpected behavior and may indicate a concurrency issue. " +
                     "Please investigate :(", jobId, OWNER_ID);
             return;
         }
 
-        // complete job
         Instant now = Instant.now();
+
+        // complete job
         job.lastRunAt = now;
+        job.lastRunStatus = status;
         job.nextRunAt = now.plusSeconds(job.intervalSeconds);
-        job.ownerId = null; // no longer working on it
+
+        // no longer working on it
+        job.startedAt = null;
+        job.ownerId = null;
+
         job.persist();
 
-        JobName name = job.jobName;
-        Instant nextRunAt = job.nextRunAt.truncatedTo(ChronoUnit.SECONDS);
-        log.debug("Job [{}] rescheduled to [{}]", name, nextRunAt);
+        log.debug("Job [{}] rescheduled to [{}]", job, job.nextRunAt.truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    void cleanupOrphanedJobs() {
+        String sql = "ownerId = null, startedAt = null where ownerId is not null and startedAt < ?1";
+        Instant threshold = Instant.now().minus(CLEANUP_ORPHANED_AFTER);
+        int updated = JobConfig.update(sql, threshold);
+        if (updated > 0) {
+            log.warn("Cleaned up [{}] orphaned jobs with stale ownership", updated);
+        }
     }
 }
