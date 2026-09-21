@@ -42,10 +42,10 @@ This was chosen over raw bulk updates for three reasons:
 
 ## Core flow
 
-1. **Job Registry:** fetches `enabled` jobs whose `next_run_at` has passed.
+1. **Job Scheduler:** fetches `enabled` jobs whose `next_run_at` has passed.
 2. **Job Executor:** attempts to acquire the advisory lock, skips the tick if the job is already running or the lock is held elsewhere.
 3. **Job Processor:** executes the job's business logic via the batched fetch + entity-managed update loop, emitting metrics to Prometheus along the way.
-4. **Job Reschedule:** persists `last_run_at` and computes the next `next_run_at` based on the configured interval.
+4. **Job Complete:** persists `last_run_at` and `last_run_status` and computes the next `next_run_at` based on the configured interval.
 
 ![Job scheduler flow diagram](docs/images/workflow-diagram.png)
 
