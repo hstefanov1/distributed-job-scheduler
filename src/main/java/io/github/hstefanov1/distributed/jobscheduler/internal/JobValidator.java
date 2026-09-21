@@ -28,8 +28,8 @@ class JobValidator {
      *
      * @throws IllegalStateException if a duplicate job identifier is found
      */
-    void validateJobNameIds() {
-        log.info("Validating job name IDs");
+    void validateJobIds() {
+        log.info("Validating job ids");
         Set<Integer> ids = new HashSet<>();
         for (JobName jobName : JobName.values()) {
             if (!ids.add(jobName.getId())) {
@@ -72,7 +72,7 @@ class JobValidator {
      */
     @Startup
     void onStart() {
-        validateJobNameIds();
+        validateJobIds();
         validateJobProcessors();
     }
 }

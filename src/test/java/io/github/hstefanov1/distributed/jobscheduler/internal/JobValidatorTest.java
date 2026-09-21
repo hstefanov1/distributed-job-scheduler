@@ -24,7 +24,7 @@ class JobValidatorTest {
     private JobValidator instance;
 
     @Test
-    void validateJobNameIds_WhenJobIdIsDuplicated_ThenAnExceptionIsThrown() {
+    void validateJobIds_WhenJobIdIsDuplicated_ThenAnExceptionIsThrown() {
         JobName jobMock1 = mock(JobName.class);
         doReturn(1).when(jobMock1).getId();
 
@@ -34,13 +34,13 @@ class JobValidatorTest {
         JobName[] jobNames = new JobName[]{jobMock1, jobMock2};
         try (MockedStatic<JobName> mock = mockStatic(JobName.class)) {
             mock.when(JobName::values).thenReturn(jobNames);
-            assertThrows(IllegalStateException.class, () -> instance.validateJobNameIds());
+            assertThrows(IllegalStateException.class, () -> instance.validateJobIds());
             mock.verify(JobName::values);
         }
     }
 
     @Test
-    void validateJobNameIds_WhenJobIdsAreUnique_ThenNothingIsThrown() {
+    void validateJobIds_WhenJobIdsAreUnique_ThenNothingIsThrown() {
         JobName jobMock1 = mock(JobName.class);
         doReturn(1).when(jobMock1).getId();
 
@@ -50,7 +50,7 @@ class JobValidatorTest {
         JobName[] jobNames = new JobName[]{jobMock1, jobMock2};
         try (MockedStatic<JobName> mock = mockStatic(JobName.class)) {
             mock.when(JobName::values).thenReturn(jobNames);
-            assertDoesNotThrow(() -> instance.validateJobNameIds());
+            assertDoesNotThrow(() -> instance.validateJobIds());
             mock.verify(JobName::values);
         }
     }
@@ -91,12 +91,12 @@ class JobValidatorTest {
     @Test
     void onStart_ShouldCallValidators() {
         JobValidator instanceSpy = spy(instance);
-        doNothing().when(instanceSpy).validateJobNameIds();
+        doNothing().when(instanceSpy).validateJobIds();
         doNothing().when(instanceSpy).validateJobProcessors();
 
         instanceSpy.onStart();
 
-        verify(instanceSpy, times(1)).validateJobNameIds();
+        verify(instanceSpy, times(1)).validateJobIds();
         verify(instanceSpy, times(1)).validateJobProcessors();
     }
 }
