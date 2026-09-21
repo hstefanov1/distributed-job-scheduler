@@ -1,6 +1,8 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
 import lombok.NoArgsConstructor;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigProvider;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -39,17 +41,21 @@ class JobConstants {
      *
      * @return a non-null, unique String identifying this specific process/host
      */
-    private static String resolveOwnerId() {
-        String podName = System.getenv("HOSTNAME"); // k8s sets this by default
-        if (podName != null && !podName.isBlank()) {
-            return podName;
+    static String resolveOwnerId() {
+        Config config = ConfigProvider.getConfig();
+        if (config != null) {
+            String podName = config.getOptionalValue("hostname", String.class).orElse(null);
+            if (podName != null && !podName.isBlank()) {
+                return podName;
+            }
         }
+
         try {
             String hostname = InetAddress.getLocalHost().getHostName();
             long pid = ProcessHandle.current().pid();
             return "local-%s-pid#%s".formatted(hostname, pid);
         } catch (UnknownHostException e) {
-            return "local-unknown-pid#-1";
+            return "local-unknown-pid#0";
         }
     }
 }

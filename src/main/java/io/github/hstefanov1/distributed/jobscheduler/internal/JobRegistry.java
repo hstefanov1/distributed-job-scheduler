@@ -4,6 +4,7 @@ import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobProcessor;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
@@ -30,7 +31,7 @@ class JobRegistry {
      * @return the registered {@link JobProcessor} instance
      * @throws IllegalStateException if no matching processor implementation is found in the CDI context
      */
-    JobProcessor get(JobName jobName) {
+    JobProcessor get(@NonNull JobName jobName) {
         JobProcessor processor = processors.get(jobName);
         if (processor == null) {
             // to fix that, make sure:

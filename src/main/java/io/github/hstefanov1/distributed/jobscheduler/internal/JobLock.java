@@ -16,8 +16,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.LOCK_NAMESPACE;
-
 /**
  * Manages PostgreSQL session-level advisory locks (exclusive, non-blocking) keyed by {@link JobName}.
  * <p>
@@ -80,7 +78,7 @@ class JobLock {
     void release(@NonNull JobName jobName) {
         Connection connection = locks.remove(jobName);
         if (connection == null) {
-            log.warn("Lock for job [{}] unreleased (held by another instance)", jobName);
+            log.warn("Lock for job [{}] unreleased (lock held by another instance)", jobName);
             return;
         }
 
@@ -132,7 +130,7 @@ class JobLock {
     boolean tryAdvisoryLock(Connection connection, int key) {
         String sql = "SELECT pg_try_advisory_lock(?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setInt(1, LOCK_NAMESPACE);
+            ps.setInt(1, JobConstants.LOCK_NAMESPACE);
             ps.setInt(2, key);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
@@ -156,7 +154,7 @@ class JobLock {
         String sql = "SELECT pg_advisory_unlock(?, ?)";
         try {
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                ps.setInt(1, LOCK_NAMESPACE);
+                ps.setInt(1, JobConstants.LOCK_NAMESPACE);
                 ps.setInt(2, key);
                 ps.execute();
             }

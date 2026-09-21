@@ -13,8 +13,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
-import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.*;
-
 /**
  * Handles all transactional database interactions and query operations for job config and scheduling state.
  */
@@ -33,7 +31,7 @@ class JobRepository {
         String sql = "enabled = true and ownerId is null and nextRunAt <= now() order by nextRunAt";
 
         List<JobConfig> list = JobConfig.<JobConfig>find(sql)
-                .page(Page.ofSize(MAX_CONCURRENT_JOBS))
+                .page(Page.ofSize(JobConstants.MAX_CONCURRENT_JOBS))
 
                 // tells postgresql that the transaction intends to update rows
                 // if another transaction tries to read/write the same rows, it will wait until this transaction ends
@@ -73,13 +71,13 @@ class JobRepository {
     void startJob(long jobId) {
         JobConfig job = JobConfig.<JobConfig>find("id = ?1", jobId).firstResult();
         if (job == null) {
-            log.warn("Owner [{}] unable to acquire job [{}] (row no longer exists)", OWNER_ID, jobId);
+            log.warn("Owner [{}] unable to acquire job [{}] (row no longer exists)", JobConstants.OWNER_ID, jobId);
             return;
         }
         job.startedAt = Instant.now();
-        job.ownerId = OWNER_ID;
+        job.ownerId = JobConstants.OWNER_ID;
         job.persist();
-        log.debug("Owner [{}] acquired job [{}]", OWNER_ID, job);
+        log.debug("Owner [{}] acquired job [{}]", JobConstants.OWNER_ID, job);
     }
 
     /**
@@ -90,13 +88,13 @@ class JobRepository {
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     void finishJob(long jobId, @NonNull JobStatus status) {
-        JobConfig job = JobConfig.<JobConfig>find("id = ?1 and ownerId = ?2", jobId, OWNER_ID).firstResult();
+        JobConfig job = JobConfig.<JobConfig>find("id = ?1 and ownerId = ?2", jobId, JobConstants.OWNER_ID).firstResult();
 
         // warn user about unexpected behavior
         if (job == null) {
             log.warn("Could not finish job [{}] with owner [{}]. " +
                     "This is unexpected behavior and may indicate a concurrency issue. " +
-                    "Please investigate :(", jobId, OWNER_ID);
+                    "Please take actions :(", jobId, JobConstants.OWNER_ID);
             return;
         }
 
@@ -112,7 +110,6 @@ class JobRepository {
         job.ownerId = null;
 
         job.persist();
-
         log.debug("Job [{}] rescheduled to [{}]", job, job.nextRunAt.truncatedTo(ChronoUnit.SECONDS));
     }
 
@@ -125,7 +122,7 @@ class JobRepository {
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     void cleanupOrphanedJobs() {
         String sql = "ownerId = null, startedAt = null where ownerId is not null and startedAt < ?1";
-        Instant threshold = Instant.now().minus(CLEANUP_ORPHANED_AFTER);
+        Instant threshold = Instant.now().minus(JobConstants.CLEANUP_ORPHANED_AFTER);
         int updated = JobConfig.update(sql, threshold);
         if (updated > 0) {
             log.warn("Cleaned up [{}] orphaned jobs with stale ownership", updated);

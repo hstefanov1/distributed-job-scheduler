@@ -54,8 +54,8 @@ class JobValidator {
         try {
             jobs = JobConfig.<JobConfig>findAll().list();
         } catch (Exception e) {
-            String error = "Failed to load job configs at startup";
-            String fix = "Check database connectivity and that every job_name value matches a JobName enum constant";
+            String error = "Failed to load job configs from db";
+            String fix = "Check connectivity and ensure that every job_name matches a JobName enum.";
             throw new IllegalStateException("%s. %s".formatted(error, fix), e);
         }
 

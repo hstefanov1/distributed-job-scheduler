@@ -1,113 +1,161 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
-import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
+import io.quarkus.panache.common.Page;
+import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
 class JobRepositoryTest {
-
-    @Mock
-    private EntityManager entityManagerMock;
-
-    @Mock
-    private Query queryMock;
 
     @InjectMocks
     private JobRepository instance;
 
     @Test
-    void claimJobs_WhenNoRows_ThenAnEmptyListIsReturned() {
-        mockEntityManagerResult(List.of());
+    void claimDueJobs_WhenNoRows_ThenAnEmptyListIsReturned() {
+        PanacheQuery<JobConfig> queryMock = mock(PanacheQuery.class);
+        doReturn(queryMock).when(queryMock).page(any(Page.class));
+        doReturn(queryMock).when(queryMock).withLock(any(LockModeType.class));
+        doReturn(queryMock).when(queryMock).withHint(anyString(), any());
+        doReturn(List.of()).when(queryMock).list();
 
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
-            mock.when(PanacheEntityBase::getEntityManager).thenReturn(entityManagerMock);
+            mock.when(() -> JobConfig.find(anyString())).thenReturn(queryMock);
 
-            List<JobConfig> result = instance.claimJobs(1);
-            assertNotNull(result);
-            assertTrue(result.isEmpty());
+            List<JobConfig> result = instance.claimDueJobs();
+            assertEquals(0, result.size());
 
-            mock.verify(PanacheEntityBase::getEntityManager, times(1));
+            verify(queryMock, times(1)).list();
         }
-
-        verify(entityManagerMock, times(1)).createNativeQuery(anyString());
-        verify(queryMock, times(2)).setParameter(anyString(), any());
-        verify(queryMock, times(1)).getResultList();
     }
 
     @Test
-    void claimJobs_WhenRows_ThenListOfJobsIsReturned() {
-        mockEntityManagerResult(List.of(1L, 2L));
-        JobConfig jobMock1 = mock(JobConfig.class);
-        JobConfig jobMock2 = mock(JobConfig.class);
+    void claimDueJobs_WhenRows_ThenListOfJobsIsReturned() {
+        PanacheQuery<JobConfig> queryMock = mock(PanacheQuery.class);
+        doReturn(queryMock).when(queryMock).page(any(Page.class));
+        doReturn(queryMock).when(queryMock).withLock(any(LockModeType.class));
+        doReturn(queryMock).when(queryMock).withHint(anyString(), any());
+        doReturn(List.of(mock(JobConfig.class))).when(queryMock).list();
 
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
-            mock.when(PanacheEntityBase::getEntityManager).thenReturn(entityManagerMock);
-            mock.when(() -> JobConfig.findByIds(any())).thenReturn(List.of(jobMock1, jobMock2));
+            mock.when(() -> JobConfig.find(anyString())).thenReturn(queryMock);
 
-            List<JobConfig> result = instance.claimJobs(1);
-            assertNotNull(result);
-            assertEquals(2, result.size());
-            assertSame(jobMock1, result.get(0));
-            assertSame(jobMock2, result.get(1));
+            List<JobConfig> result = instance.claimDueJobs();
+            assertEquals(1, result.size());
 
-            mock.verify(PanacheEntityBase::getEntityManager, times(1));
-            mock.verify(() -> JobConfig.findByIds(any()), times(1));
+            verify(queryMock, times(1)).list();
         }
-
-        verify(entityManagerMock, times(1)).createNativeQuery(anyString());
-        verify(queryMock, times(2)).setParameter(anyString(), any());
-        verify(queryMock, times(1)).getResultList();
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void completeJob_WhenJobIsNotFound_ThenNothingHappens() {
+    @SuppressWarnings("DataFlowIssue")
+    void findSuspiciousJobs_WhenJobIdsNull_ThenShouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () -> instance.findSuspiciousJobs(null));
+    }
+
+    @Test
+    void findSuspiciousJobs_ShouldReturnSuspiciousJobs() {
+        Set<Long> jobIds = Set.of(1L);
+        JobConfig jobMock = mock(JobConfig.class);
+        List<JobConfig> expectedList = List.of(jobMock);
+
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            mock.when(() -> JobConfig.list(
+                    eq("id in ?1 and startedAt < ?2"),
+                    eq(jobIds),
+                    any(Instant.class)
+            )).thenReturn(expectedList);
+
+            List<JobConfig> result = instance.findSuspiciousJobs(jobIds);
+            assertEquals(1, result.size());
+        }
+    }
+
+    @Test
+    void startJob_WhenJobIsNotFound_ThenAWarningIsLogged() {
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
             PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
-            mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
-
             doReturn(null).when(query).firstResult();
+            mock.when(() -> JobConfig.find(anyString(), anyLong())).thenReturn(query);
 
-            assertDoesNotThrow(() -> instance.completeJob(1L));
+            assertDoesNotThrow(() -> instance.startJob(1L));
 
             verify(query, times(1)).firstResult();
         }
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void completeJob_WhenJobIsFound_ThenItIsCompleted() {
+    void startJob_WhenJobIsFound_ThenItIsStarted() {
+        JobConfig jobMock = mock(JobConfig.class);
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
             PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
+            doReturn(jobMock).when(query).firstResult();
+            mock.when(() -> JobConfig.find(anyString(), anyLong())).thenReturn(query);
+
+            assertNull(jobMock.startedAt);
+            assertNull(jobMock.ownerId);
+            instance.startJob(1L);
+            assertNotNull(jobMock.startedAt);
+            assertEquals(JobConstants.OWNER_ID, jobMock.ownerId);
+
+            verify(query, times(1)).firstResult();
+            verify(jobMock, times(1)).persist();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("DataFlowIssue")
+    void finishJob_WhenJobStatusIsNull_ThenShouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () -> instance.finishJob(1L, null));
+    }
+
+    @Test
+    void finishJob_WhenJobIsNotFound_ThenAWarningIsLogged() {
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
+            doReturn(null).when(query).firstResult();
             mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
 
-            JobConfig jobMock = mock(JobConfig.class);
-            jobMock.jobName = JobName.EXAMPLE_FAST;
-            jobMock.intervalSeconds = 123;
-            jobMock.ownerId = "my_owner";
-            doReturn(jobMock).when(query).firstResult();
+            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.COMPLETED));
 
-            assertDoesNotThrow(() -> instance.completeJob(1L));
+            verify(query, times(1)).firstResult();
+        }
+    }
+
+    @Test
+    void finishJob_WhenJobIsFound_ThenItIsFinished() {
+        JobConfig jobMock = mock(JobConfig.class);
+        jobMock.intervalSeconds = 123;
+        jobMock.ownerId = "my_owner";
+        jobMock.startedAt = Instant.now();
+
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
+            doReturn(jobMock).when(query).firstResult();
+            mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
+
+            assertNull(jobMock.lastRunAt);
+            assertNull(jobMock.lastRunStatus);
+            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.COMPLETED));
             assertNotNull(jobMock.lastRunAt);
             assertNotNull(jobMock.nextRunAt);
             assertTrue(jobMock.nextRunAt.isAfter(jobMock.lastRunAt));
-            assertEquals(123, jobMock.intervalSeconds);
+            assertEquals(JobStatus.COMPLETED, jobMock.lastRunStatus);
+            assertNull(jobMock.startedAt);
             assertNull(jobMock.ownerId);
 
             verify(query, times(1)).firstResult();
@@ -115,10 +163,19 @@ class JobRepositoryTest {
         }
     }
 
-    private void mockEntityManagerResult(List<Long> ids) {
-        when(entityManagerMock.createNativeQuery(anyString())).thenReturn(queryMock);
-        when(queryMock.setParameter(anyString(), anyString())).thenReturn(queryMock);
-        when(queryMock.setParameter(anyString(), anyInt())).thenReturn(queryMock);
-        when(queryMock.getResultList()).thenReturn(ids);
+    @Test
+    void cleanupOrphanedJobs_WhenNoJobs_ThenNothingHappens() {
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            mock.when(() -> JobConfig.update(anyString(), any(Instant.class))).thenReturn(0);
+            assertDoesNotThrow(() -> instance.cleanupOrphanedJobs());
+        }
+    }
+
+    @Test
+    void cleanupOrphanedJobs_WhenJobsFound_ThenAWarningIsLoggedAndJobsAreUpdated() {
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            mock.when(() -> JobConfig.update(anyString(), any(Instant.class))).thenReturn(1);
+            assertDoesNotThrow(() -> instance.cleanupOrphanedJobs());
+        }
     }
 }

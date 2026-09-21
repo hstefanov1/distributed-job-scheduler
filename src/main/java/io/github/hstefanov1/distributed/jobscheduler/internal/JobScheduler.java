@@ -56,7 +56,7 @@ class JobScheduler {
         }
         List<JobConfig> suspicious = repository.findSuspiciousJobs(running);
         for (JobConfig job : suspicious) {
-            log.warn("Job [{}] exceeded max runtime [{} min] (potential hang)", job, MAX_JOB_RUNTIME.toMinutes());
+            log.warn("Job [{}] exceeded max runtime [{}min], please take actions (potential hang)", job, MAX_JOB_RUNTIME.toMinutes());
             // add your metric/alert here
         }
     }

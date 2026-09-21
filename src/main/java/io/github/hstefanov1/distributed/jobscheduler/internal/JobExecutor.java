@@ -12,8 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Set;
 import java.util.concurrent.*;
 
-import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.MAX_CONCURRENT_JOBS;
-import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.OWNER_ID;
 
 /**
  * Executes scheduled jobs asynchronously using virtual threads while managing system-wide concurrency limits.
@@ -24,7 +22,7 @@ import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstant
 class JobExecutor {
 
     // parallel job configs
-    private final Semaphore semaphore = new Semaphore(MAX_CONCURRENT_JOBS);
+    private final Semaphore semaphore = new Semaphore(JobConstants.MAX_CONCURRENT_JOBS);
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     private final JobLock lock;
@@ -73,7 +71,7 @@ class JobExecutor {
      *
      * @param job the job config to run
      */
-    void execute(JobConfig job) {
+    void execute(@NonNull JobConfig job) {
         try {
             if (!lock.tryAcquire(job.jobName)) {
                 log.debug("Job [{}] aborted (lock is held by another instance)", job);
@@ -106,10 +104,10 @@ class JobExecutor {
      * @param job the job config to build the context from
      * @return a new {@link JobContext} instance
      */
-    JobContext createContext(JobConfig job) {
+    JobContext createContext(@NonNull JobConfig job) {
         return new JobContext(
                 job.jobName,
-                OWNER_ID,
+                JobConstants.OWNER_ID,
                 job.batchSize
         );
     }
