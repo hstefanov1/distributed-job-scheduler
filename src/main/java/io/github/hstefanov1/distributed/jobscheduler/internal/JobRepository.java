@@ -28,9 +28,9 @@ class JobRepository {
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     List<JobConfig> claimDueJobs() {
-        String sql = "enabled = true and ownerId is null and nextRunAt <= now() order by nextRunAt";
+        String sql = "enabled = true and ownerId is null and nextRunAt <= ?1 order by nextRunAt";
 
-        List<JobConfig> list = JobConfig.<JobConfig>find(sql)
+        List<JobConfig> list = JobConfig.<JobConfig>find(sql, Instant.now())
                 .page(Page.ofSize(JobConstants.MAX_CONCURRENT_JOBS))
 
                 // tells postgresql that the transaction intends to update rows
@@ -69,7 +69,7 @@ class JobRepository {
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     void startJob(long jobId) {
-        JobConfig job = JobConfig.<JobConfig>find("id = ?1", jobId).firstResult();
+        JobConfig job = JobConfig.findById(jobId);
         if (job == null) {
             log.warn("Owner [{}] unable to acquire job [{}] (row no longer exists)", JobConstants.OWNER_ID, jobId);
             return;

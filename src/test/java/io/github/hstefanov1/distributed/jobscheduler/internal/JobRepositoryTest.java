@@ -34,7 +34,7 @@ class JobRepositoryTest {
         doReturn(List.of()).when(queryMock).list();
 
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
-            mock.when(() -> JobConfig.find(anyString())).thenReturn(queryMock);
+            mock.when(() -> JobConfig.find(anyString(), any(Instant.class))).thenReturn(queryMock);
 
             List<JobConfig> result = instance.claimDueJobs();
             assertEquals(0, result.size());
@@ -52,7 +52,7 @@ class JobRepositoryTest {
         doReturn(List.of(mock(JobConfig.class))).when(queryMock).list();
 
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
-            mock.when(() -> JobConfig.find(anyString())).thenReturn(queryMock);
+            mock.when(() -> JobConfig.find(anyString(), any(Instant.class))).thenReturn(queryMock);
 
             List<JobConfig> result = instance.claimDueJobs();
             assertEquals(1, result.size());
@@ -88,13 +88,11 @@ class JobRepositoryTest {
     @Test
     void startJob_WhenJobIsNotFound_ThenAWarningIsLogged() {
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
-            PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
-            doReturn(null).when(query).firstResult();
-            mock.when(() -> JobConfig.find(anyString(), anyLong())).thenReturn(query);
+            mock.when(() -> JobConfig.findById(anyLong())).thenReturn(null);
 
             assertDoesNotThrow(() -> instance.startJob(1L));
 
-            verify(query, times(1)).firstResult();
+            mock.verify(() -> JobConfig.findById(anyLong()), times(1));
         }
     }
 
@@ -102,9 +100,7 @@ class JobRepositoryTest {
     void startJob_WhenJobIsFound_ThenItIsStarted() {
         JobConfig jobMock = mock(JobConfig.class);
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
-            PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
-            doReturn(jobMock).when(query).firstResult();
-            mock.when(() -> JobConfig.find(anyString(), anyLong())).thenReturn(query);
+            mock.when(() -> JobConfig.findById(anyLong())).thenReturn(jobMock);
 
             assertNull(jobMock.startedAt);
             assertNull(jobMock.ownerId);
@@ -112,7 +108,7 @@ class JobRepositoryTest {
             assertNotNull(jobMock.startedAt);
             assertEquals(JobConstants.OWNER_ID, jobMock.ownerId);
 
-            verify(query, times(1)).firstResult();
+            mock.verify(() -> JobConfig.findById(anyLong()), times(1));
             verify(jobMock, times(1)).persist();
         }
     }
