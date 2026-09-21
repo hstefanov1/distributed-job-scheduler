@@ -89,6 +89,7 @@ class JobConfig extends PanacheEntityBase {
      * Defaults to {@link JobStatus#PENDING}.
      */
     @Column(name = "last_run_status", nullable = false)
+    @Enumerated(EnumType.STRING)
     public JobStatus lastRunStatus = JobStatus.PENDING;
 
     /**
