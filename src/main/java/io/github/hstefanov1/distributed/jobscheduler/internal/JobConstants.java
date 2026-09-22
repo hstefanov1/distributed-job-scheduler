@@ -31,9 +31,9 @@ class JobConstants {
 
     // general configs
     static final int MAX_CONCURRENT_JOBS = 10; // start max jobs per replica per run
-    static final Duration MAX_JOB_RUNTIME = Duration.ofMinutes(30); // watchdog threshold for stuck-job detection
+    static final int THRESHOLD_FAILED_ATTEMPTS = 5; // above this value an alert must be triggered
+    static final Duration THRESHOLD_MAX_RUNTIME = Duration.ofMinutes(30); // watchdog threshold for stuck-job detection
     static final Duration CLEANUP_ORPHANED_AFTER = Duration.ofHours(2); // well above MAX_JOB_RUNTIME
-    static final int THRESHOLD_FAILED_JOBS = 5; // above this value an alert must be triggered
 
     /**
      * Resolves the unique identifier (owner ID) of the current scheduler replica instance.

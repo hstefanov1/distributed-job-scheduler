@@ -49,16 +49,16 @@ class JobSchedulerTest {
         doReturn(Set.of()).when(executorMock).getRunning();
         instance.reportSuspiciousJobs();
         verify(executorMock, times(1)).getRunning();
-        verify(repositoryMock, times(0)).findSuspiciousJobs(any());
+        verify(repositoryMock, times(0)).findSuspiciousJobs(any(), any());
     }
 
     @Test
     void reportSuspiciousJobs_WhenJobs_ThenAWarningIsLogged() {
         doReturn(Set.of(1L)).when(executorMock).getRunning();
-        doReturn(List.of(mock(JobConfig.class))).when(repositoryMock).findSuspiciousJobs(any());
+        doReturn(List.of(mock(JobConfig.class))).when(repositoryMock).findSuspiciousJobs(any(), any());
         instance.reportSuspiciousJobs();
         verify(executorMock, times(1)).getRunning();
-        verify(repositoryMock, times(1)).findSuspiciousJobs(any());
+        verify(repositoryMock, times(1)).findSuspiciousJobs(any(), any());
     }
 
     @Test
@@ -77,7 +77,7 @@ class JobSchedulerTest {
 
     @Test
     void reportFailingJobs_WhenJobFailsAboveThreshold_ThenAnErrorIsLogged() {
-        int threshold = JobConstants.THRESHOLD_FAILED_JOBS;
+        int threshold = JobConstants.THRESHOLD_FAILED_ATTEMPTS;
         int above = threshold + 1;
         doReturn(Map.of(mock(JobName.class), above)).when(executorMock).getFailing();
         instance.reportFailingJobs();

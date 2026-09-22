@@ -10,6 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -62,8 +63,9 @@ class JobRepositoryTest {
 
     @Test
     @SuppressWarnings("DataFlowIssue")
-    void findSuspiciousJobs_WhenJobIdsNull_ThenShouldThrowNullPointerException() {
-        assertThrows(NullPointerException.class, () -> instance.findSuspiciousJobs(null));
+    void findSuspiciousJobs_WhenJobIdsAndThresholdNull_ThenShouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () -> instance.findSuspiciousJobs(null, Duration.ZERO));
+        assertThrows(NullPointerException.class, () -> instance.findSuspiciousJobs(Set.of(), null));
     }
 
     @Test
@@ -79,7 +81,7 @@ class JobRepositoryTest {
                     any(Instant.class)
             )).thenReturn(expectedList);
 
-            List<JobConfig> result = instance.findSuspiciousJobs(jobIds);
+            List<JobConfig> result = instance.findSuspiciousJobs(jobIds, Duration.ZERO);
             assertEquals(1, result.size());
         }
     }

@@ -131,12 +131,12 @@ class JobConstantsTest {
 
     @Test
     void maxJobRuntime_ShouldBe30Minutes() {
-        assertEquals(30, JobConstants.MAX_JOB_RUNTIME.toMinutes());
+        assertEquals(30, JobConstants.THRESHOLD_MAX_RUNTIME.toMinutes());
     }
 
     @Test
     void cleanupOrphanedAfter_ShouldBe4xTimesHigherThanMaxJobRunTime() {
-        long maxJobRuntime = JobConstants.MAX_JOB_RUNTIME.toMinutes();
+        long maxJobRuntime = JobConstants.THRESHOLD_MAX_RUNTIME.toMinutes();
         long cleanupOrphanedAfter = JobConstants.CLEANUP_ORPHANED_AFTER.toMinutes();
         assertEquals(4 * maxJobRuntime, cleanupOrphanedAfter);
     }

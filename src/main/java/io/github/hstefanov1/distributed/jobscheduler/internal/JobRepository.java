@@ -5,10 +5,12 @@ import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.NotNull;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -52,14 +54,14 @@ class JobRepository {
     }
 
     /**
-     * Finds jobs that are currently running on the local instance but have exceeded
-     * the maximum permitted runtime threshold defined by {@link JobConstants#MAX_JOB_RUNTIME}.
+     * Finds jobs that are currently running on the local instance and have exceeded the permitted runtime threshold.
      *
      * @param jobIds the set of database IDs of jobs currently executing on the local instance
+     * @param threshold the threshold runtime permitted
      * @return a list of jobs considered to be potentially hanging/stuck
      */
-    List<JobConfig> findSuspiciousJobs(@NonNull Set<Long> jobIds) {
-        Instant maxRunTime = Instant.now().minus(JobConstants.MAX_JOB_RUNTIME);
+    List<JobConfig> findSuspiciousJobs(@NonNull Set<Long> jobIds, @NotNull Duration threshold) {
+        Instant maxRunTime = Instant.now().minus(threshold);
         return JobConfig.list("id in ?1 and startedAt < ?2", jobIds, maxRunTime);
     }
 
@@ -85,8 +87,8 @@ class JobRepository {
     /**
      * Finishes the job, schedules its next eligible run, and releases its ownership.
      *
-     * @param jobId  id of the job that finished running
-     * @param status the status of the job
+     * @param jobId     id of the job that finished running
+     * @param status    the status of the job
      * @param exception the exception caused the job to fail (can be null)
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)

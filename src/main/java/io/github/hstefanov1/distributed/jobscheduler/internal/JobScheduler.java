@@ -47,7 +47,7 @@ class JobScheduler {
     /**
      * Watchdog task that monitors jobs currently executing on the local instance.
      * <p>
-     * Compares active execution runtimes against {@link JobConstants#MAX_JOB_RUNTIME} to identify and log
+     * Compares active execution runtimes against {@link JobConstants#THRESHOLD_MAX_RUNTIME} to identify and log
      * warnings for potentially hanging/stuck executions.
      */
     @Scheduled(delay = SCHEDULED_DELAY, every = REPORT_SUSPICIOUS_JOBS_EVERY)
@@ -56,9 +56,9 @@ class JobScheduler {
         if (running.isEmpty()) {
             return;
         }
-        List<JobConfig> suspicious = repository.findSuspiciousJobs(running);
+        List<JobConfig> suspicious = repository.findSuspiciousJobs(running, THRESHOLD_MAX_RUNTIME);
         for (JobConfig job : suspicious) {
-            log.warn("Job [{}] exceeded max runtime [{}min], please take actions (potential hang)", job, MAX_JOB_RUNTIME.toMinutes());
+            log.warn("Job [{}] exceeded max runtime [{}min], please take actions (potential hang)", job, THRESHOLD_MAX_RUNTIME.toMinutes());
             // add your metric/alert here
         }
     }
@@ -66,7 +66,7 @@ class JobScheduler {
     /**
      * Watchdog task that monitors jobs currently failing above the configured threshold on the local instance.
      * <p>
-     * Each job whose consecutive failure count exceeds {@link JobConstants#THRESHOLD_FAILED_JOBS},
+     * Each job whose consecutive failure count exceeds {@link JobConstants#THRESHOLD_FAILED_ATTEMPTS},
      * logs an error.
      * <p>
      * Jobs failing at or below the threshold are ignored.
@@ -80,9 +80,9 @@ class JobScheduler {
         for (Map.Entry<JobName, Integer> failed : failing.entrySet()) {
             JobName job = failed.getKey();
             Integer count = failed.getValue();
-            if (count > THRESHOLD_FAILED_JOBS) {
+            if (count > THRESHOLD_FAILED_ATTEMPTS) {
                 log.error("Job [{}] is failing (current count [{}] exceeds threshold [{}]), please take actions",
-                        job, count, THRESHOLD_FAILED_JOBS);
+                        job, count, THRESHOLD_FAILED_ATTEMPTS);
                 // add your metric/alert here
             }
         }
