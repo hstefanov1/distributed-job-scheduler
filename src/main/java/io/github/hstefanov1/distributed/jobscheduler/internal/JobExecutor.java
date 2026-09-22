@@ -92,6 +92,7 @@ class JobExecutor {
                 status = JobStatus.COMPLETED;
             } catch (Throwable throwable) {
                 exception = throwable;
+                throw throwable;
             } finally {
                 repository.finishJob(job.id, status, exception);
                 log.debug("Job [{}] finished with status [{}]", job, status);

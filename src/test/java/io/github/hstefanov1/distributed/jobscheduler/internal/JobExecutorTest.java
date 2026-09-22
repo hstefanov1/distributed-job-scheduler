@@ -173,7 +173,7 @@ class JobExecutorTest {
     }
 
     @Test
-    void execute_WhenJobFails_ThenTheExceptionIsExtracted() {
+    void execute_WhenJobFails_ThenTheExceptionIsExtractedAndThrown() {
         JobConfig job = createJobConfig();
         doReturn(true).when(lockMock).tryAcquire(any());
 
@@ -182,7 +182,7 @@ class JobExecutorTest {
         doThrow(RuntimeException.class).when(processorMock).process(any());
 
         JobExecutor instanceSpy = spy(instance);
-        instanceSpy.execute(job);
+        assertThrows(RuntimeException.class, ()-> instanceSpy.execute(job));
 
         verify(lockMock, times(1)).tryAcquire(any());
         verify(repositoryMock, times(1)).startJob(anyLong());
