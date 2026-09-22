@@ -115,7 +115,7 @@ class JobRepositoryTest {
     @Test
     @SuppressWarnings("DataFlowIssue")
     void finishJob_WhenJobStatusIsNull_ThenShouldThrowNullPointerException() {
-        assertThrows(NullPointerException.class, () -> instance.finishJob(1L, null));
+        assertThrows(NullPointerException.class, () -> instance.finishJob(1L, null, null));
     }
 
     @Test
@@ -125,14 +125,14 @@ class JobRepositoryTest {
             doReturn(null).when(query).firstResult();
             mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
 
-            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.COMPLETED));
+            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.COMPLETED, null));
 
             verify(query, times(1)).firstResult();
         }
     }
 
     @Test
-    void finishJob_WhenJobIsFound_ThenItIsFinished() {
+    void finishJob_WhenJobIsCompleted_ThenItIsFinished() {
         JobConfig jobMock = mock(JobConfig.class);
         jobMock.intervalSeconds = 123;
         jobMock.ownerId = "my_owner";
@@ -145,13 +145,92 @@ class JobRepositoryTest {
 
             assertNull(jobMock.lastRunAt);
             assertNull(jobMock.lastRunStatus);
-            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.COMPLETED));
+            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.COMPLETED, null));
             assertNotNull(jobMock.lastRunAt);
+            assertNull(jobMock.lastRunException);
             assertNotNull(jobMock.nextRunAt);
             assertTrue(jobMock.nextRunAt.isAfter(jobMock.lastRunAt));
             assertEquals(JobStatus.COMPLETED, jobMock.lastRunStatus);
             assertNull(jobMock.startedAt);
             assertNull(jobMock.ownerId);
+
+            verify(query, times(1)).firstResult();
+            verify(jobMock, times(1)).persist();
+        }
+    }
+
+    @Test
+    void finishJob_WhenJobIsFailedWithoutThrowable_ThenItIsFinishedAndAWarningIsLogged() {
+        JobConfig jobMock = mock(JobConfig.class);
+        jobMock.intervalSeconds = 123;
+        jobMock.ownerId = "my_owner";
+        jobMock.startedAt = Instant.now();
+
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
+            doReturn(jobMock).when(query).firstResult();
+            mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
+
+            assertNull(jobMock.lastRunStatus);
+            assertNull(jobMock.lastRunException);
+            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.FAILED, null));
+            assertEquals(JobStatus.FAILED, jobMock.lastRunStatus);
+            assertNull(jobMock.lastRunException);
+
+            verify(query, times(1)).firstResult();
+            verify(jobMock, times(1)).persist();
+        }
+    }
+
+    @Test
+    void finishJob_WhenJobIsFailedWithBigThrowable_ThenItIsFinishedAndErrorMessageIsTrimmed() {
+        JobConfig jobMock = mock(JobConfig.class);
+        jobMock.intervalSeconds = 123;
+        jobMock.ownerId = "my_owner";
+        jobMock.startedAt = Instant.now();
+
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
+            doReturn(jobMock).when(query).firstResult();
+            mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
+
+            String bigMessage = "Lorem Ipsum is simply dummy text of the " +
+                    "printing and typesetting industry. Lorem Ipsum has been " +
+                    "the industry's standard dummy text ever since 1966, when " +
+                    "designers at Letraset and James Mosley, the librarian at St " +
+                    "Bride Printing Library in London, took a 19";
+
+            assertEquals(256, bigMessage.length());
+            assertNull(jobMock.lastRunStatus);
+            assertNull(jobMock.lastRunException);
+            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.FAILED, new RuntimeException(bigMessage)));
+            assertEquals(JobStatus.FAILED, jobMock.lastRunStatus);
+            assertNotNull(jobMock.lastRunException);
+            assertEquals(255, jobMock.lastRunException.length());
+
+            verify(query, times(1)).firstResult();
+            verify(jobMock, times(1)).persist();
+        }
+    }
+
+    @Test
+    void finishJob_WhenJobIsFailedWithThrowable_ThenItIsFinishedAndErrorMessageIsSaved() {
+        JobConfig jobMock = mock(JobConfig.class);
+        jobMock.intervalSeconds = 123;
+        jobMock.ownerId = "my_owner";
+        jobMock.startedAt = Instant.now();
+
+        try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
+            PanacheQuery<JobConfig> query = mock(PanacheQuery.class);
+            doReturn(jobMock).when(query).firstResult();
+            mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
+
+            assertNull(jobMock.lastRunStatus);
+            assertNull(jobMock.lastRunException);
+            assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.FAILED, new RuntimeException("my exception")));
+            assertEquals(JobStatus.FAILED, jobMock.lastRunStatus);
+            assertNotNull(jobMock.lastRunException);
+            assertEquals("my exception", jobMock.lastRunException);
 
             verify(query, times(1)).firstResult();
             verify(jobMock, times(1)).persist();

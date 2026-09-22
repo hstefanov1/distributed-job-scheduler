@@ -1,6 +1,7 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
 import io.quarkus.panache.common.Page;
+import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -85,9 +87,10 @@ class JobRepository {
      *
      * @param jobId  id of the job that finished running
      * @param status the status of the job
+     * @param exception the exception caused the job to fail (can be null)
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
-    void finishJob(long jobId, @NonNull JobStatus status) {
+    void finishJob(long jobId, @NonNull JobStatus status, @Nullable Throwable exception) {
         JobConfig job = JobConfig.<JobConfig>find("id = ?1 and ownerId = ?2", jobId, JobConstants.OWNER_ID).firstResult();
 
         // warn user about unexpected behavior
@@ -103,6 +106,22 @@ class JobRepository {
         // complete job
         job.lastRunAt = now;
         job.lastRunStatus = status;
+
+        // extract exception message
+        if (JobStatus.FAILED.equals(status)) {
+            Optional<String> message = Optional.ofNullable(exception)
+                    .map(Throwable::getMessage)
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .map(ex -> ex.length() > 255 ? ex.substring(0, 255) : ex);
+            if (message.isPresent()) {
+                job.lastRunException = message.get();
+            } else {
+                job.lastRunException = null;
+                log.warn("Job [{}] failed but no exception message was captured (lastRunException set null)", jobId);
+            }
+        }
+
         job.nextRunAt = now.plusSeconds(job.intervalSeconds);
 
         // no longer working on it

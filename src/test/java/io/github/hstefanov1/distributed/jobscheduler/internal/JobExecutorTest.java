@@ -169,7 +169,27 @@ class JobExecutorTest {
         verify(registryMock, times(1)).get(any());
         verify(instanceSpy, times(1)).createContext(any());
         verify(processorMock, times(1)).process(any());
-        verify(repositoryMock, times(1)).finishJob(anyLong(), any());
+        verify(repositoryMock, times(1)).finishJob(anyLong(), any(), any());
+    }
+
+    @Test
+    void execute_WhenJobFails_ThenTheExceptionIsExtracted() {
+        JobConfig job = createJobConfig();
+        doReturn(true).when(lockMock).tryAcquire(any());
+
+        JobProcessor processorMock = mock(JobProcessor.class);
+        doReturn(processorMock).when(registryMock).get(any());
+        doThrow(RuntimeException.class).when(processorMock).process(any());
+
+        JobExecutor instanceSpy = spy(instance);
+        instanceSpy.execute(job);
+
+        verify(lockMock, times(1)).tryAcquire(any());
+        verify(repositoryMock, times(1)).startJob(anyLong());
+        verify(registryMock, times(1)).get(any());
+        verify(instanceSpy, times(1)).createContext(any());
+        verify(processorMock, times(1)).process(any());
+        verify(repositoryMock, times(1)).finishJob(anyLong(), any(), any());
     }
 
     @Test

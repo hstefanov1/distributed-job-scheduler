@@ -64,6 +64,11 @@
                     remarks="Status of the last job run.">
                 <constraints nullable="false"/>
             </column>
+            <column name="last_run_exception"
+                    type="VARCHAR(255)"
+                    remarks="Exception message (if any) from the last job run.">
+                <constraints nullable="true"/>
+            </column>
         </createTable>
 
         <createIndex tableName="job_config" indexName="job_config_enabled_next_run_idx">

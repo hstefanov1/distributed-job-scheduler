@@ -82,6 +82,7 @@ class JobExecutor {
             repository.startJob(job.id);
 
             // start the job business logic
+            Throwable exception = null;
             JobStatus status = JobStatus.FAILED;
             try {
                 JobProcessor processor = registry.get(job.jobName);
@@ -89,8 +90,10 @@ class JobExecutor {
                 log.debug("Job [{}] initialized", job);
                 processor.process(context);
                 status = JobStatus.COMPLETED;
+            } catch (Throwable throwable) {
+                exception = throwable;
             } finally {
-                repository.finishJob(job.id, status);
+                repository.finishJob(job.id, status, exception);
                 log.debug("Job [{}] finished with status [{}]", job, status);
             }
         } finally {

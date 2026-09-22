@@ -93,6 +93,12 @@ class JobConfig extends PanacheEntityBase {
     public JobStatus lastRunStatus = JobStatus.PENDING;
 
     /**
+     * Exception message (if any) from the last job run.
+     */
+    @Column(name = "last_run_exception")
+    public String lastRunException;
+
+    /**
      * Returns the name of the job represented by this configuration.
      *
      * @return the {@link String} name of the job
