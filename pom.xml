@@ -110,6 +110,21 @@
                 </configuration>
             </plugin>
             <plugin>
+                <artifactId>maven-surefire-report-plugin</artifactId>
+                <version>${surefire-plugin.version}</version>
+                <configuration>
+                    <linkXRef>false</linkXRef> <!-- removes warning "Unable to locate Test Source XRef" -->
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <executions>
