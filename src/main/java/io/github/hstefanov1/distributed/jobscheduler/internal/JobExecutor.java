@@ -1,6 +1,7 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
 import io.github.hstefanov1.distributed.jobscheduler.api.JobContext;
+import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.github.hstefanov1.distributed.jobscheduler.api.JobProcessor;
 import io.quarkus.runtime.Shutdown;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -9,8 +10,11 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 
 /**
@@ -29,6 +33,7 @@ class JobExecutor {
     private final JobRegistry registry;
     private final JobRepository repository;
     private final Set<Long> running = ConcurrentHashMap.newKeySet();
+    private final Map<JobName, AtomicInteger> failing = new ConcurrentHashMap<>();
 
     /**
      * Submits the job for asynchronous execution on a virtual thread,
@@ -72,33 +77,38 @@ class JobExecutor {
      * @param job the job config to run
      */
     void execute(@NonNull JobConfig job) {
+        Long jobId = job.id;
+        JobName jobName = job.jobName;
+
         try {
-            if (!lock.tryAcquire(job.jobName)) {
+            if (!lock.tryAcquire(jobName)) {
                 log.debug("Job [{}] aborted (lock is held by another instance)", job);
                 return;
             }
 
             // assign ownerId and startAt fields
-            repository.startJob(job.id);
+            repository.startJob(jobId);
 
             // start the job business logic
             Throwable exception = null;
             JobStatus status = JobStatus.FAILED;
             try {
-                JobProcessor processor = registry.get(job.jobName);
+                JobProcessor processor = registry.get(jobName);
                 JobContext context = createContext(job);
                 log.debug("Job [{}] initialized", job);
                 processor.process(context);
                 status = JobStatus.COMPLETED;
+                failing.remove(jobName);
             } catch (Throwable throwable) {
+                failing.computeIfAbsent(jobName, name -> new AtomicInteger()).incrementAndGet();
                 exception = throwable;
                 throw throwable;
             } finally {
-                repository.finishJob(job.id, status, exception);
+                repository.finishJob(jobId, status, exception);
                 log.debug("Job [{}] finished with status [{}]", job, status);
             }
         } finally {
-            running.remove(job.id);
+            running.remove(jobId);
         }
     }
 
@@ -123,6 +133,19 @@ class JobExecutor {
      */
     Set<Long> getRunning() {
         return Set.copyOf(running);
+    }
+
+    /**
+     * Retrieves an immutable snapshot of jobs currently failing, along with their consecutive failure count.
+     * <p>
+     * A job is removed from this map as soon as it completes successfully, so only jobs that have failed
+     * since their last successful execution are present.
+     *
+     * @return a read-only map of job name to failure count; empty if no jobs are currently failing
+     */
+    public Map<JobName, Integer> getFailing() {
+        return failing.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().get()));
     }
 
     /**

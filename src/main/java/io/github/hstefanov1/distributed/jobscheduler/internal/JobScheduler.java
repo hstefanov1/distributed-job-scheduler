@@ -1,5 +1,6 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
+import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.AccessLevel;
@@ -7,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static io.github.hstefanov1.distributed.jobscheduler.internal.JobConstants.*;
@@ -58,6 +60,31 @@ class JobScheduler {
         for (JobConfig job : suspicious) {
             log.warn("Job [{}] exceeded max runtime [{}min], please take actions (potential hang)", job, MAX_JOB_RUNTIME.toMinutes());
             // add your metric/alert here
+        }
+    }
+
+    /**
+     * Watchdog task that monitors jobs currently failing above the configured threshold on the local instance.
+     * <p>
+     * Each job whose consecutive failure count exceeds {@link JobConstants#THRESHOLD_FAILED_JOBS},
+     * logs an error.
+     * <p>
+     * Jobs failing at or below the threshold are ignored.
+     */
+    @Scheduled(delay = SCHEDULED_DELAY, every = REPORT_FAILING_JOBS_EVERY)
+    void reportFailingJobs() {
+        Map<JobName, Integer> failing = executor.getFailing();
+        if (failing.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<JobName, Integer> failed : failing.entrySet()) {
+            JobName job = failed.getKey();
+            Integer count = failed.getValue();
+            if (count > THRESHOLD_FAILED_JOBS) {
+                log.error("Job [{}] is failing (current count [{}] exceeds threshold [{}]), please take actions",
+                        job, count, THRESHOLD_FAILED_JOBS);
+                // add your metric/alert here
+            }
         }
     }
 }

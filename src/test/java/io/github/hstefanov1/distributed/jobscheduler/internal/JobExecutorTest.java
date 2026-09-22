@@ -182,7 +182,7 @@ class JobExecutorTest {
         doThrow(RuntimeException.class).when(processorMock).process(any());
 
         JobExecutor instanceSpy = spy(instance);
-        assertThrows(RuntimeException.class, ()-> instanceSpy.execute(job));
+        assertThrows(RuntimeException.class, () -> instanceSpy.execute(job));
 
         verify(lockMock, times(1)).tryAcquire(any());
         verify(repositoryMock, times(1)).startJob(anyLong());
@@ -213,6 +213,13 @@ class JobExecutorTest {
     void getRunning_ShouldBeUnmodifiable() {
         assertThrows(UnsupportedOperationException.class, () -> instance.getRunning().add(1L));
         assertThrows(UnsupportedOperationException.class, () -> instance.getRunning().clear());
+    }
+
+    @Test
+    @SuppressWarnings({"java:S5778"})
+    void getFailing_ShouldBeUnmodifiable() {
+        assertThrows(UnsupportedOperationException.class, () -> instance.getFailing().put(mock(JobName.class), 1));
+        assertThrows(UnsupportedOperationException.class, () -> instance.getFailing().clear());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
+import io.github.hstefanov1.distributed.jobscheduler.api.JobName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -7,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.mockito.Mockito.*;
@@ -57,5 +59,28 @@ class JobSchedulerTest {
         instance.reportSuspiciousJobs();
         verify(executorMock, times(1)).getRunning();
         verify(repositoryMock, times(1)).findSuspiciousJobs(any());
+    }
+
+    @Test
+    void reportFailingJobs_WhenNoJobs_ThenNothingHappens() {
+        doReturn(Map.of()).when(executorMock).getFailing();
+        instance.reportFailingJobs();
+        verify(executorMock, times(1)).getFailing();
+    }
+
+    @Test
+    void reportFailingJobs_WhenJobFailsBelowThreshold_ThenNothingHappens() {
+        doReturn(Map.of(mock(JobName.class), 1)).when(executorMock).getFailing();
+        instance.reportFailingJobs();
+        verify(executorMock, times(1)).getFailing();
+    }
+
+    @Test
+    void reportFailingJobs_WhenJobFailsAboveThreshold_ThenAnErrorIsLogged() {
+        int threshold = JobConstants.THRESHOLD_FAILED_JOBS;
+        int above = threshold + 1;
+        doReturn(Map.of(mock(JobName.class), above)).when(executorMock).getFailing();
+        instance.reportFailingJobs();
+        verify(executorMock, times(1)).getFailing();
     }
 }
