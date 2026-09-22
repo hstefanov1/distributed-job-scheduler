@@ -33,7 +33,7 @@ class JobRepository {
         List<JobConfig> list = JobConfig.<JobConfig>find(sql, Instant.now())
                 .page(Page.ofSize(JobConstants.MAX_CONCURRENT_JOBS))
 
-                // tells postgresql that the transaction intends to update rows
+                // tells PostgreSQL that the transaction intends to update rows
                 // if another transaction tries to read/write the same rows, it will wait until this transaction ends
                 .withLock(LockModeType.PESSIMISTIC_WRITE) // appends FOR UPDATE to the query
 

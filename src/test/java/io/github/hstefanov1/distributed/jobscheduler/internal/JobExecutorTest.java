@@ -19,8 +19,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -191,6 +189,7 @@ class JobExecutorTest {
     }
 
     @Test
+    @SuppressWarnings("java:S5778")
     void getRunning_ShouldBeUnmodifiable() {
         assertThrows(UnsupportedOperationException.class, () -> instance.getRunning().add(1L));
         assertThrows(UnsupportedOperationException.class, () -> instance.getRunning().clear());
