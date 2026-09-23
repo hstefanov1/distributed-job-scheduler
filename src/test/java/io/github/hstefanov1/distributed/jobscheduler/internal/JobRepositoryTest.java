@@ -62,7 +62,7 @@ class JobRepositoryTest {
     }
 
     @Test
-    @SuppressWarnings("DataFlowIssue")
+    @SuppressWarnings({"DataFlowIssue", "java:S5778"})
     void findSuspiciousJobs_WhenJobIdsAndThresholdNull_ThenShouldThrowNullPointerException() {
         assertThrows(NullPointerException.class, () -> instance.findSuspiciousJobs(null, Duration.ZERO));
         assertThrows(NullPointerException.class, () -> instance.findSuspiciousJobs(Set.of(), null));
@@ -76,7 +76,7 @@ class JobRepositoryTest {
 
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
             mock.when(() -> JobConfig.list(
-                    eq("id in ?1 and startedAt < ?2"),
+                    eq("id in ?1 and ownerId is not null and startedAt < ?2"),
                     eq(jobIds),
                     any(Instant.class)
             )).thenReturn(expectedList);
@@ -89,9 +89,9 @@ class JobRepositoryTest {
     @Test
     void startJob_WhenJobIsNotFound_ThenAWarningIsLogged() {
         try (MockedStatic<PanacheEntityBase> mock = mockStatic(PanacheEntityBase.class)) {
-            mock.when(() -> JobConfig.findById(anyLong())).thenReturn(null);
+            mock.when(() -> PanacheEntityBase.findById(anyLong())).thenReturn(null);
 
-            assertDoesNotThrow(() -> instance.startJob(1L));
+            assertThrows(IllegalStateException.class, () -> instance.startJob(1L));
 
             mock.verify(() -> JobConfig.findById(anyLong()), times(1));
         }

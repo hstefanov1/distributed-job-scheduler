@@ -59,7 +59,7 @@ class JobLock {
             log.warn("Lock for job [{}] failed acquiring", jobName, e);
             throw e;
         }
-        log.debug("Lock for job [{}] {}", jobName, locked ? "acquired" : "not acquired");
+        log.debug("Lock for job [{}] {}", jobName, locked ? "successfully acquired" : "not acquired");
 
         if (!locked) {
             closeSafely(connection); // unable to acquire lock then close connection
@@ -88,14 +88,12 @@ class JobLock {
         } finally {
             closeSafely(connection);
         }
-        log.debug("Lock for job [{}] released", jobName);
+        log.debug("Lock for job [{}] successfully released", jobName);
     }
 
     /**
-     * Checks if the lock is currently considered active and held locally by this replica.
-     * <p>
-     * Validates both the tracking state and the physical connection's health. If the connection is
-     * closed or invalid, the lock tracker is cleaned up and {@code false} is returned.
+     * Validates the physical connection's health. If the connection is closed or invalid, the lock tracker is
+     * cleaned up and {@code false} is returned.
      *
      * @param jobName the name of the job to check
      * @return {@code true} if the lock is held and the connection is healthy; {@code false} otherwise
@@ -109,9 +107,9 @@ class JobLock {
             if (connection.isValid(1)) {
                 return true;
             }
-            log.warn("Lock for job [{}] has been lost, caused by: connection no longer valid", jobName);
+            log.warn("Lock for job [{}] considered lost (connection is no longer valid)", jobName);
         } catch (SQLException e) {
-            log.warn("Lock for job [{}] has been lost, caused by: {}", jobName, e.getMessage());
+            log.warn("Lock for job [{}] considered lost (failed to validate connection: {})", jobName, e.getMessage());
         }
         closeSafely(locks.remove(jobName));
         return false;
@@ -120,10 +118,10 @@ class JobLock {
     /**
      * Low-level helper executing PostgreSQL's {@code pg_try_advisory_lock} function.
      * <p>
-     * Acquires a session-level double-key lock using the system-wide namespace and the job's stable ID.
+     * Acquires a session-level double-key lock using the system-wide namespace and the job's ID.
      *
      * @param connection the database connection to run the query on
-     * @param key        the unique, stable identifier of the job
+     * @param key        the unique identifier of the job
      * @return {@code true} if the PostgreSQL advisory lock was successfully acquired; {@code false} otherwise
      * @throws IllegalStateException if a database access error occurs during query execution
      */
@@ -144,7 +142,7 @@ class JobLock {
     /**
      * Low-level helper executing PostgreSQL's {@code pg_advisory_unlock} function.
      * <p>
-     * Explicitly unlocks the session-level advisory lock using the namespace and job ID.
+     * Explicitly unlocks the session-level advisory lock using the namespace and job's ID.
      *
      * @param connection the database connection to run the query on
      * @param key        the unique, stable identifier of the job

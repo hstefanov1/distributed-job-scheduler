@@ -52,7 +52,7 @@ class JobValidator {
         // retrieve all jobs
         List<JobConfig> jobs;
         try {
-            jobs = JobConfig.<JobConfig>findAll().list();
+            jobs = JobConfig.findAll().list();
         } catch (Exception e) {
             String error = "Failed to load job configs from db";
             String fix = "Check connectivity and ensure that every job_name matches a JobName enum.";

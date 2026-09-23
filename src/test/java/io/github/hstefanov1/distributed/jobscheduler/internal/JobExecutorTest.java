@@ -275,7 +275,7 @@ class JobExecutorTest {
         configMock.id = 1L;
         configMock.batchSize = 100;
         configMock.intervalSeconds = 300;
-        configMock.jobName = JobName.EXAMPLE_SLOW;
+        configMock.jobName = mock(JobName.class);
         return configMock;
     }
 }

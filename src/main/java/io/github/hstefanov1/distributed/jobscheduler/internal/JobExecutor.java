@@ -77,7 +77,7 @@ class JobExecutor {
      * @param job the job config to run
      */
     void execute(@NonNull JobConfig job) {
-        Long jobId = job.id;
+        long jobId = job.id;
         JobName jobName = job.jobName;
 
         try {
@@ -90,7 +90,7 @@ class JobExecutor {
             repository.startJob(jobId);
 
             // start the job business logic
-            Throwable exception = null;
+            Exception caught = null;
             JobStatus status = JobStatus.FAILED;
             try {
                 JobProcessor processor = registry.get(jobName);
@@ -99,12 +99,12 @@ class JobExecutor {
                 processor.process(context);
                 status = JobStatus.COMPLETED;
                 failing.remove(jobName);
-            } catch (Throwable throwable) {
+            } catch (Exception exception) {
                 failing.computeIfAbsent(jobName, name -> new AtomicInteger()).incrementAndGet();
-                exception = throwable;
-                throw throwable;
+                caught = exception;
+                throw exception;
             } finally {
-                repository.finishJob(jobId, status, exception);
+                repository.finishJob(jobId, status, caught);
                 log.debug("Job [{}] finished with status [{}]", job, status);
             }
         } finally {
@@ -143,7 +143,7 @@ class JobExecutor {
      *
      * @return a read-only map of job name to failure count; empty if no jobs are currently failing
      */
-    public Map<JobName, Integer> getFailing() {
+    Map<JobName, Integer> getFailing() {
         return failing.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().get()));
     }

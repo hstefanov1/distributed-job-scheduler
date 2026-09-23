@@ -58,7 +58,7 @@ class JobScheduler {
         }
         List<JobConfig> suspicious = repository.findSuspiciousJobs(running, THRESHOLD_MAX_RUNTIME);
         for (JobConfig job : suspicious) {
-            log.warn("Job [{}] exceeded max runtime [{}min], please take actions (potential hang)", job, THRESHOLD_MAX_RUNTIME.toMinutes());
+            log.warn("Job [{}] exceeded max runtime [{}min], please investigate (potential hang)", job, THRESHOLD_MAX_RUNTIME.toMinutes());
             // add your metric/alert here
         }
     }
@@ -78,11 +78,11 @@ class JobScheduler {
             return;
         }
         for (Map.Entry<JobName, Integer> failed : failing.entrySet()) {
-            JobName job = failed.getKey();
+            JobName jobName = failed.getKey();
             Integer count = failed.getValue();
             if (count > THRESHOLD_FAILED_ATTEMPTS) {
-                log.error("Job [{}] is failing (current count [{}] exceeds threshold [{}]), please take actions",
-                        job, count, THRESHOLD_FAILED_ATTEMPTS);
+                log.error("Job [{}] is failing (current count [{}] exceeds threshold [{}]), please investigate",
+                        jobName, count, THRESHOLD_FAILED_ATTEMPTS);
                 // add your metric/alert here
             }
         }

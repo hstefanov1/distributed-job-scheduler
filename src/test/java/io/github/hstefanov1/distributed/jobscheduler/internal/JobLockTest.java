@@ -49,6 +49,7 @@ class JobLockTest {
     }
 
     @Test
+    @SuppressWarnings("java:S5778")
     void tryAcquire_WhenExceptionOnTryAdvisoryLock_ThenAnExceptionIsThrown() {
         JobLock instanceSpy = spy(instance);
 
@@ -59,7 +60,7 @@ class JobLockTest {
         doNothing().when(instanceSpy).closeSafely(any());
 
         // test goal
-        assertThrows(IllegalStateException.class, () -> instanceSpy.tryAcquire(JobName.EXAMPLE_FAST));
+        assertThrows(IllegalStateException.class, () -> instanceSpy.tryAcquire(mock(JobName.class)));
 
         // verifications
         verify(instanceSpy, times(1)).getConnection();
@@ -77,7 +78,7 @@ class JobLockTest {
         doReturn(false).when(instanceSpy).tryAdvisoryLock(any(), anyInt());
 
         // test goal
-        boolean result = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
+        boolean result = instanceSpy.tryAcquire(mock(JobName.class));
         assertFalse(result);
 
         // verifications
@@ -96,7 +97,7 @@ class JobLockTest {
         doReturn(true).when(instanceSpy).tryAdvisoryLock(any(), anyInt());
 
         // test goal
-        boolean result = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
+        boolean result = instanceSpy.tryAcquire(mock(JobName.class));
         assertTrue(result);
 
         // verifications
@@ -339,7 +340,7 @@ class JobLockTest {
         Connection connMock = mock(Connection.class);
         doReturn(connMock).when(instanceSpy).getConnection();
         doReturn(true).when(instanceSpy).tryAdvisoryLock(any(), anyInt());
-        boolean locked = instanceSpy.tryAcquire(JobName.EXAMPLE_FAST);
+        boolean locked = instanceSpy.tryAcquire(mock(JobName.class));
         assertTrue(locked);
 
         doNothing().when(instanceSpy).release(any());

@@ -1,5 +1,6 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import io.quarkus.panache.common.Page;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -34,7 +35,7 @@ class JobRepository {
     List<JobConfig> claimDueJobs() {
         String sql = "enabled = true and ownerId is null and nextRunAt <= ?1 order by nextRunAt";
 
-        List<JobConfig> list = JobConfig.<JobConfig>find(sql, Instant.now())
+        List<JobConfig> list = JobConfig.find(sql, Instant.now())
                 .page(Page.ofSize(JobConstants.MAX_CONCURRENT_JOBS))
 
                 // tells PostgreSQL that the transaction intends to update rows
@@ -54,15 +55,16 @@ class JobRepository {
     }
 
     /**
-     * Finds jobs that are currently running on the local instance and have exceeded the permitted runtime threshold.
+     * Finds jobs that are currently running and have exceeded the permitted runtime threshold.
      *
-     * @param jobIds the set of database IDs of jobs currently executing on the local instance
+     * @param jobIds    the set of database job IDs currently executing
      * @param threshold the threshold runtime permitted
      * @return a list of jobs considered to be potentially hanging/stuck
      */
     List<JobConfig> findSuspiciousJobs(@NonNull Set<Long> jobIds, @NotNull Duration threshold) {
         Instant maxRunTime = Instant.now().minus(threshold);
-        return JobConfig.list("id in ?1 and startedAt < ?2", jobIds, maxRunTime);
+        String sql = "id in ?1 and ownerId is not null and startedAt < ?2";
+        return JobConfig.list(sql, jobIds, maxRunTime);
     }
 
     /**
@@ -70,13 +72,16 @@ class JobRepository {
      * instance as owner ID.
      *
      * @param jobId the database ID of the job config to acquire
+     * @throws IllegalStateException if the job no longer exists at this point. This is not expected
+     *                               to happen under normal operation, since the id was obtained from
+     *                               a row claimed via {@link #claimDueJobs()}
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     void startJob(long jobId) {
         JobConfig job = JobConfig.findById(jobId);
         if (job == null) {
-            log.warn("Owner [{}] unable to acquire job [{}] (row no longer exists)", JobConstants.OWNER_ID, jobId);
-            return;
+            String message = "Owner [%s] can't start the job id [%s] because this job id no longer exists";
+            throw new IllegalStateException(message.formatted(JobConstants.OWNER_ID, jobId));
         }
         job.startedAt = Instant.now();
         job.ownerId = JobConstants.OWNER_ID;
@@ -93,13 +98,11 @@ class JobRepository {
      */
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     void finishJob(long jobId, @NonNull JobStatus status, @Nullable Throwable exception) {
-        JobConfig job = JobConfig.<JobConfig>find("id = ?1 and ownerId = ?2", jobId, JobConstants.OWNER_ID).firstResult();
-
-        // warn user about unexpected behavior
+        JobConfig job = JobConfig.find("id = ?1 and ownerId = ?2", jobId, JobConstants.OWNER_ID).firstResult();
         if (job == null) {
-            log.warn("Could not finish job [{}] with owner [{}]. " +
+            log.error("Owner [{}] couldn't finish job id [{}] because ownership no longer matches. " +
                     "This is unexpected behavior and may indicate a concurrency issue. " +
-                    "Please take actions :(", jobId, JobConstants.OWNER_ID);
+                    "Please investigate :(", JobConstants.OWNER_ID, jobId);
             return;
         }
 
@@ -135,7 +138,7 @@ class JobRepository {
     }
 
     /**
-     * Detects and recovers orphaned jobs—jobs marked as running with an active owner and start time,
+     * Detects and recovers orphaned jobs marked as running with an active owner and start time,
      * but whose start time has exceeded the configured cleanup threshold {@link JobConstants#CLEANUP_ORPHANED_AFTER}.
      * <p>
      * Clears their ownership and start time so that they can be claimed and executed again.
