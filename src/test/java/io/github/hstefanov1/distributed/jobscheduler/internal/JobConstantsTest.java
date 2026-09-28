@@ -5,7 +5,6 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.net.InetAddress;
@@ -26,7 +25,7 @@ class JobConstantsTest {
         doReturn("no-provider").when(inetAddressMock).getHostName();
 
         try (MockedStatic<ConfigProvider> mock1 = mockStatic(ConfigProvider.class);
-             MockedStatic<InetAddress> mock2 = Mockito.mockStatic(InetAddress.class)) {
+             MockedStatic<InetAddress> mock2 = mockStatic(InetAddress.class)) {
             mock1.when(ConfigProvider::getConfig).thenReturn(null);
             mock2.when(InetAddress::getLocalHost).thenReturn(inetAddressMock);
 
@@ -50,7 +49,7 @@ class JobConstantsTest {
         doReturn("null-hostname").when(inetAddressMock).getHostName();
 
         try (MockedStatic<ConfigProvider> mock1 = mockStatic(ConfigProvider.class);
-             MockedStatic<InetAddress> mock2 = Mockito.mockStatic(InetAddress.class)) {
+             MockedStatic<InetAddress> mock2 = mockStatic(InetAddress.class)) {
             mock1.when(ConfigProvider::getConfig).thenReturn(configMock);
             mock2.when(InetAddress::getLocalHost).thenReturn(inetAddressMock);
 
@@ -75,7 +74,7 @@ class JobConstantsTest {
         doReturn("empty-hostname").when(inetAddressMock).getHostName();
 
         try (MockedStatic<ConfigProvider> mock1 = mockStatic(ConfigProvider.class);
-             MockedStatic<InetAddress> mock2 = Mockito.mockStatic(InetAddress.class)) {
+             MockedStatic<InetAddress> mock2 = mockStatic(InetAddress.class)) {
             mock1.when(ConfigProvider::getConfig).thenReturn(configMock);
             mock2.when(InetAddress::getLocalHost).thenReturn(inetAddressMock);
 
@@ -107,10 +106,12 @@ class JobConstantsTest {
 
     @Test
     void resolveOwnerId_WhenUnknownHostException_ThenFallbackToLocalUnknownPid() {
-        try (MockedStatic<InetAddress> mock = Mockito.mockStatic(InetAddress.class)) {
-            mock.when(InetAddress::getLocalHost).thenThrow(UnknownHostException.class);
+        try (MockedStatic<ConfigProvider> mock1 = mockStatic(ConfigProvider.class);
+             MockedStatic<InetAddress> mock2 = mockStatic(InetAddress.class)) {
+            mock1.when(ConfigProvider::getConfig).thenReturn(null);
+            mock2.when(InetAddress::getLocalHost).thenThrow(UnknownHostException.class);
             assertEquals("local-unknown-pid#0", JobConstants.resolveOwnerId());
-            mock.verify(InetAddress::getLocalHost, times(2)); // owner_id calls it too
+            mock2.verify(InetAddress::getLocalHost, times(2)); // owner_id calls it too
         }
     }
 
