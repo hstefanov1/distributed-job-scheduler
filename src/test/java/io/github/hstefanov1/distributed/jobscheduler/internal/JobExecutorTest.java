@@ -73,7 +73,7 @@ class JobExecutorTest {
         instance.submit(job);
 
         // started only once
-        verify(executorMock, times(1)).submit(any(Runnable.class));
+        verify(executorMock).submit(any(Runnable.class));
     }
 
     @Test
@@ -86,9 +86,9 @@ class JobExecutorTest {
         JobExecutor instanceSpy = spy(instance);
         instanceSpy.submit(job);
 
-        verify(executorMock, times(1)).submit(taskCaptor.capture());
+        verify(executorMock).submit(taskCaptor.capture());
         taskCaptor.getValue().run(); // execute the captured runnable synchronously
-        verify(semaphoreMock, times(1)).acquire();
+        verify(semaphoreMock).acquire();
         verify(semaphoreMock, never()).release();
         verify(instanceSpy, never()).execute(job);
     }
@@ -104,11 +104,11 @@ class JobExecutorTest {
 
         instanceSpy.submit(job);
 
-        verify(executorMock, times(1)).submit(taskCaptor.capture());
+        verify(executorMock).submit(taskCaptor.capture());
         taskCaptor.getValue().run(); // execute the captured runnable synchronously
-        verify(semaphoreMock, times(1)).acquire();
-        verify(semaphoreMock, times(1)).release();
-        verify(instanceSpy, times(1)).execute(job);
+        verify(semaphoreMock).acquire();
+        verify(semaphoreMock).release();
+        verify(instanceSpy).execute(job);
     }
 
     @Test
@@ -122,15 +122,15 @@ class JobExecutorTest {
 
         instanceSpy.submit(job);
 
-        verify(executorMock, times(1)).submit(taskCaptor.capture());
+        verify(executorMock).submit(taskCaptor.capture());
         try {
             taskCaptor.getValue().run(); // execute the captured runnable synchronously
         } catch (RuntimeException ignored) {
             // don't care
         }
-        verify(semaphoreMock, times(1)).acquire();
-        verify(semaphoreMock, times(1)).release();
-        verify(instanceSpy, times(1)).execute(job);
+        verify(semaphoreMock).acquire();
+        verify(semaphoreMock).release();
+        verify(instanceSpy).execute(job);
     }
 
     @Test
@@ -149,8 +149,8 @@ class JobExecutorTest {
         instanceSpy.execute(job);
 
         // verifications
-        verify(lockMock, times(1)).tryAcquire(any());
-        verify(registryMock, times(0)).get(any());
+        verify(lockMock).tryAcquire(any());
+        verify(registryMock, never()).get(any());
     }
 
     @Test
@@ -164,12 +164,12 @@ class JobExecutorTest {
         JobExecutor instanceSpy = spy(instance);
         instanceSpy.execute(job);
 
-        verify(lockMock, times(1)).tryAcquire(any());
-        verify(repositoryMock, times(1)).startJob(anyLong());
-        verify(registryMock, times(1)).get(any());
-        verify(instanceSpy, times(1)).createContext(any());
-        verify(processorMock, times(1)).process(any());
-        verify(repositoryMock, times(1)).finishJob(anyLong(), any(), any());
+        verify(lockMock).tryAcquire(any());
+        verify(repositoryMock).startJob(anyLong());
+        verify(registryMock).get(any());
+        verify(instanceSpy).createContext(any());
+        verify(processorMock).process(any());
+        verify(repositoryMock).finishJob(anyLong(), any(), any());
     }
 
     @Test
@@ -184,12 +184,12 @@ class JobExecutorTest {
         JobExecutor instanceSpy = spy(instance);
         assertThrows(RuntimeException.class, () -> instanceSpy.execute(job));
 
-        verify(lockMock, times(1)).tryAcquire(any());
-        verify(repositoryMock, times(1)).startJob(anyLong());
-        verify(registryMock, times(1)).get(any());
-        verify(instanceSpy, times(1)).createContext(any());
-        verify(processorMock, times(1)).process(any());
-        verify(repositoryMock, times(1)).finishJob(anyLong(), any(), any());
+        verify(lockMock).tryAcquire(any());
+        verify(repositoryMock).startJob(anyLong());
+        verify(registryMock).get(any());
+        verify(instanceSpy).createContext(any());
+        verify(processorMock).process(any());
+        verify(repositoryMock).finishJob(anyLong(), any(), any());
     }
 
     @Test
@@ -229,8 +229,8 @@ class JobExecutorTest {
 
         instance.onShutdown();
 
-        verify(executorMock, times(1)).shutdown();
-        verify(executorMock, times(1)).awaitTermination(anyLong(), any());
+        verify(executorMock).shutdown();
+        verify(executorMock).awaitTermination(anyLong(), any());
         verify(executorMock, never()).shutdownNow();
     }
 
@@ -241,9 +241,9 @@ class JobExecutorTest {
 
         instance.onShutdown();
 
-        verify(executorMock, times(1)).shutdown();
+        verify(executorMock).shutdown();
         verify(executorMock, times(2)).awaitTermination(anyLong(), any());
-        verify(executorMock, times(1)).shutdownNow();
+        verify(executorMock).shutdownNow();
     }
 
     @Test
@@ -254,9 +254,9 @@ class JobExecutorTest {
 
         assertDoesNotThrow(() -> instance.onShutdown());
 
-        verify(executorMock, times(1)).shutdown();
+        verify(executorMock).shutdown();
         verify(executorMock, times(2)).awaitTermination(anyLong(), any());
-        verify(executorMock, times(1)).shutdownNow();
+        verify(executorMock).shutdownNow();
     }
 
     @Test
@@ -266,8 +266,8 @@ class JobExecutorTest {
 
         assertDoesNotThrow(() -> instance.onShutdown());
 
-        verify(executorMock, times(1)).shutdown();
-        verify(executorMock, times(1)).awaitTermination(anyLong(), any());
+        verify(executorMock).shutdown();
+        verify(executorMock).awaitTermination(anyLong(), any());
     }
 
     private JobConfig createJobConfig() {

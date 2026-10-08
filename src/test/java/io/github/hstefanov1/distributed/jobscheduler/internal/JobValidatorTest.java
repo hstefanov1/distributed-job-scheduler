@@ -85,7 +85,7 @@ class JobValidatorTest {
             mock.verify(PanacheEntityBase::findAll);
         }
 
-        verify(registryMock, times(1)).get(any());
+        verify(registryMock).get(any());
     }
 
     @Test
@@ -96,7 +96,7 @@ class JobValidatorTest {
 
         instanceSpy.onStart();
 
-        verify(instanceSpy, times(1)).validateJobIds();
-        verify(instanceSpy, times(1)).validateJobProcessors();
+        verify(instanceSpy).validateJobIds();
+        verify(instanceSpy).validateJobProcessors();
     }
 }

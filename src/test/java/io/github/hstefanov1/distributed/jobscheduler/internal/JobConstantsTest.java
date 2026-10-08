@@ -33,11 +33,11 @@ class JobConstantsTest {
             Pattern pattern = Pattern.compile("^local-no-provider-pid#\\d+");
             assertTrue(pattern.matcher(result).matches());
 
-            mock1.verify(ConfigProvider::getConfig, times(1));
-            mock2.verify(InetAddress::getLocalHost, times(1));
+            mock1.verify(ConfigProvider::getConfig);
+            mock2.verify(InetAddress::getLocalHost);
         }
 
-        verify(inetAddressMock, times(1)).getHostName();
+        verify(inetAddressMock).getHostName();
     }
 
     @Test
@@ -57,12 +57,12 @@ class JobConstantsTest {
             Pattern pattern = Pattern.compile("^local-null-hostname-pid#\\d+");
             assertTrue(pattern.matcher(result).matches());
 
-            mock1.verify(ConfigProvider::getConfig, times(1));
-            mock2.verify(InetAddress::getLocalHost, times(1));
+            mock1.verify(ConfigProvider::getConfig);
+            mock2.verify(InetAddress::getLocalHost);
         }
 
-        verify(configMock, times(1)).getOptionalValue("hostname", String.class);
-        verify(inetAddressMock, times(1)).getHostName();
+        verify(configMock).getOptionalValue("hostname", String.class);
+        verify(inetAddressMock).getHostName();
     }
 
     @Test
@@ -82,12 +82,12 @@ class JobConstantsTest {
             Pattern pattern = Pattern.compile("^local-empty-hostname-pid#\\d+");
             assertTrue(pattern.matcher(result).matches());
 
-            mock1.verify(ConfigProvider::getConfig, times(1));
-            mock2.verify(InetAddress::getLocalHost, times(1));
+            mock1.verify(ConfigProvider::getConfig);
+            mock2.verify(InetAddress::getLocalHost);
         }
 
-        verify(configMock, times(1)).getOptionalValue("hostname", String.class);
-        verify(inetAddressMock, times(1)).getHostName();
+        verify(configMock).getOptionalValue("hostname", String.class);
+        verify(inetAddressMock).getHostName();
     }
 
     @Test
@@ -98,10 +98,10 @@ class JobConstantsTest {
         try (MockedStatic<ConfigProvider> mock1 = mockStatic(ConfigProvider.class)) {
             mock1.when(ConfigProvider::getConfig).thenReturn(configMock);
             assertEquals("valid-hostname", JobConstants.resolveOwnerId());
-            mock1.verify(ConfigProvider::getConfig, times(1));
+            mock1.verify(ConfigProvider::getConfig);
         }
 
-        verify(configMock, times(1)).getOptionalValue("hostname", String.class);
+        verify(configMock).getOptionalValue("hostname", String.class);
     }
 
     @Test

@@ -39,7 +39,7 @@ class JobRepositoryTest {
             List<JobConfig> result = instance.claimDueJobs();
             assertEquals(0, result.size());
 
-            verify(queryMock, times(1)).list();
+            verify(queryMock).list();
         }
     }
 
@@ -57,7 +57,7 @@ class JobRepositoryTest {
             List<JobConfig> result = instance.claimDueJobs();
             assertEquals(1, result.size());
 
-            verify(queryMock, times(1)).list();
+            verify(queryMock).list();
         }
     }
 
@@ -93,7 +93,7 @@ class JobRepositoryTest {
 
             assertThrows(IllegalStateException.class, () -> instance.startJob(1L));
 
-            mock.verify(() -> JobConfig.findById(anyLong()), times(1));
+            mock.verify(() -> JobConfig.findById(anyLong()));
         }
     }
 
@@ -109,8 +109,8 @@ class JobRepositoryTest {
             assertNotNull(jobMock.startedAt);
             assertEquals(JobConstants.OWNER_ID, jobMock.ownerId);
 
-            mock.verify(() -> JobConfig.findById(anyLong()), times(1));
-            verify(jobMock, times(1)).persist();
+            mock.verify(() -> JobConfig.findById(anyLong()));
+            verify(jobMock).persist();
         }
     }
 
@@ -129,7 +129,7 @@ class JobRepositoryTest {
 
             assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.COMPLETED, null));
 
-            verify(query, times(1)).firstResult();
+            verify(query).firstResult();
         }
     }
 
@@ -156,8 +156,8 @@ class JobRepositoryTest {
             assertNull(jobMock.startedAt);
             assertNull(jobMock.ownerId);
 
-            verify(query, times(1)).firstResult();
-            verify(jobMock, times(1)).persist();
+            verify(query).firstResult();
+            verify(jobMock).persist();
         }
     }
 
@@ -179,8 +179,8 @@ class JobRepositoryTest {
             assertEquals(JobStatus.FAILED, jobMock.lastRunStatus);
             assertNull(jobMock.lastRunException);
 
-            verify(query, times(1)).firstResult();
-            verify(jobMock, times(1)).persist();
+            verify(query).firstResult();
+            verify(jobMock).persist();
         }
     }
 
@@ -210,8 +210,8 @@ class JobRepositoryTest {
             assertNotNull(jobMock.lastRunException);
             assertEquals(255, jobMock.lastRunException.length());
 
-            verify(query, times(1)).firstResult();
-            verify(jobMock, times(1)).persist();
+            verify(query).firstResult();
+            verify(jobMock).persist();
         }
     }
 
@@ -234,8 +234,8 @@ class JobRepositoryTest {
             assertNotNull(jobMock.lastRunException);
             assertEquals("my exception", jobMock.lastRunException);
 
-            verify(query, times(1)).firstResult();
-            verify(jobMock, times(1)).persist();
+            verify(query).firstResult();
+            verify(jobMock).persist();
         }
     }
 

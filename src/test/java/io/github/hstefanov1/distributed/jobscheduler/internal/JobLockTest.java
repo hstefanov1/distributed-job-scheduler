@@ -42,10 +42,10 @@ class JobLockTest {
         instanceSpy.tryAcquire(mock(JobName.class));
 
         // verifications
-        verify(instanceSpy, times(1)).isAlreadyAcquired(any());
-        verify(instanceSpy, times(0)).getConnection();
-        verify(instanceSpy, times(0)).tryAdvisoryLock(any(), anyInt());
-        verify(instanceSpy, times(0)).closeSafely(any());
+        verify(instanceSpy).isAlreadyAcquired(any());
+        verify(instanceSpy, never()).getConnection();
+        verify(instanceSpy, never()).tryAdvisoryLock(any(), anyInt());
+        verify(instanceSpy, never()).closeSafely(any());
     }
 
     @Test
@@ -63,9 +63,9 @@ class JobLockTest {
         assertThrows(IllegalStateException.class, () -> instanceSpy.tryAcquire(mock(JobName.class)));
 
         // verifications
-        verify(instanceSpy, times(1)).getConnection();
-        verify(instanceSpy, times(1)).tryAdvisoryLock(any(), anyInt());
-        verify(instanceSpy, times(1)).closeSafely(any());
+        verify(instanceSpy).getConnection();
+        verify(instanceSpy).tryAdvisoryLock(any(), anyInt());
+        verify(instanceSpy).closeSafely(any());
     }
 
     @Test
@@ -82,9 +82,9 @@ class JobLockTest {
         assertFalse(result);
 
         // verifications
-        verify(instanceSpy, times(1)).getConnection();
-        verify(instanceSpy, times(1)).tryAdvisoryLock(any(), anyInt());
-        verify(instanceSpy, times(1)).closeSafely(any());
+        verify(instanceSpy).getConnection();
+        verify(instanceSpy).tryAdvisoryLock(any(), anyInt());
+        verify(instanceSpy).closeSafely(any());
     }
 
     @Test
@@ -101,9 +101,9 @@ class JobLockTest {
         assertTrue(result);
 
         // verifications
-        verify(instanceSpy, times(1)).getConnection();
-        verify(instanceSpy, times(1)).tryAdvisoryLock(any(), anyInt());
-        verify(instanceSpy, times(0)).closeSafely(any());
+        verify(instanceSpy).getConnection();
+        verify(instanceSpy).tryAdvisoryLock(any(), anyInt());
+        verify(instanceSpy, never()).closeSafely(any());
     }
 
     @Test
@@ -116,8 +116,8 @@ class JobLockTest {
     void release_WhenLockIsHeldByAnotherInstance_ThenReleaseIsNotCalled() {
         JobLock instanceSpy = spy(instance);
         instanceSpy.release(mock(JobName.class));
-        verify(instanceSpy, times(0)).advisoryUnlock(any(), anyInt());
-        verify(instanceSpy, times(0)).closeSafely(any());
+        verify(instanceSpy, never()).advisoryUnlock(any(), anyInt());
+        verify(instanceSpy, never()).closeSafely(any());
     }
 
     @Test
@@ -138,8 +138,8 @@ class JobLockTest {
 
         // test goal
         instanceSpy.release(jobNameMock);
-        verify(instanceSpy, times(1)).advisoryUnlock(any(), anyInt());
-        verify(instanceSpy, times(1)).closeSafely(any());
+        verify(instanceSpy).advisoryUnlock(any(), anyInt());
+        verify(instanceSpy).closeSafely(any());
     }
 
     @Test
@@ -164,8 +164,8 @@ class JobLockTest {
         boolean result = instanceSpy.isAlreadyAcquired(jobNameMock);
         assertTrue(result);
 
-        verify(connMock, times(1)).isValid(1);
-        verify(instanceSpy, times(0)).closeSafely(any());
+        verify(connMock).isValid(1);
+        verify(instanceSpy, never()).closeSafely(any());
     }
 
     @Test
@@ -185,8 +185,8 @@ class JobLockTest {
         boolean result = instanceSpy.isAlreadyAcquired(jobNameMock);
         assertFalse(result);
 
-        verify(connMock, times(1)).isValid(1);
-        verify(instanceSpy, times(1)).closeSafely(any());
+        verify(connMock).isValid(1);
+        verify(instanceSpy).closeSafely(any());
     }
 
     @Test
@@ -206,8 +206,8 @@ class JobLockTest {
         boolean result = instanceSpy.isAlreadyAcquired(jobNameMock);
         assertFalse(result);
 
-        verify(connMock, times(1)).isValid(1);
-        verify(instanceSpy, times(1)).closeSafely(any());
+        verify(connMock).isValid(1);
+        verify(instanceSpy).closeSafely(any());
     }
 
     @Test
@@ -226,16 +226,16 @@ class JobLockTest {
         assertTrue(result);
 
         // verifications
-        verify(connMock, times(1)).prepareStatement(anyString());
-        verify(psMock, times(1)).setInt(1, JobConstants.LOCK_NAMESPACE);
-        verify(psMock, times(1)).setInt(2, 1);
-        verify(psMock, times(1)).executeQuery();
-        verify(rsMock, times(1)).next();
-        verify(rsMock, times(1)).getBoolean(anyInt());
+        verify(connMock).prepareStatement(anyString());
+        verify(psMock).setInt(1, JobConstants.LOCK_NAMESPACE);
+        verify(psMock).setInt(2, 1);
+        verify(psMock).executeQuery();
+        verify(rsMock).next();
+        verify(rsMock).getBoolean(anyInt());
 
         // close
-        verify(rsMock, times(1)).close();
-        verify(psMock, times(1)).close();
+        verify(rsMock).close();
+        verify(psMock).close();
     }
 
     @Test
@@ -266,13 +266,13 @@ class JobLockTest {
         instance.advisoryUnlock(connMock, 1);
 
         // verifications
-        verify(connMock, times(1)).prepareStatement(anyString());
-        verify(psMock, times(1)).setInt(1, JobConstants.LOCK_NAMESPACE);
-        verify(psMock, times(1)).setInt(2, 1);
-        verify(psMock, times(1)).execute();
+        verify(connMock).prepareStatement(anyString());
+        verify(psMock).setInt(1, JobConstants.LOCK_NAMESPACE);
+        verify(psMock).setInt(2, 1);
+        verify(psMock).execute();
 
         // close
-        verify(psMock, times(1)).close();
+        verify(psMock).close();
     }
 
 
@@ -299,7 +299,7 @@ class JobLockTest {
         IllegalStateException e = assertThrows(IllegalStateException.class, () ->
                 instance.getConnection());
         assertEquals("Failed getting data-source connection", e.getMessage());
-        verify(dataSourceMock, times(1)).getConnection();
+        verify(dataSourceMock).getConnection();
     }
 
     @Test
@@ -308,7 +308,7 @@ class JobLockTest {
         Connection connMock = mock(Connection.class);
         doReturn(connMock).when(dataSourceMock).getConnection();
         assertEquals(connMock, instance.getConnection());
-        verify(dataSourceMock, times(1)).getConnection();
+        verify(dataSourceMock).getConnection();
     }
 
     @Test
@@ -322,7 +322,7 @@ class JobLockTest {
         Connection connMock = mock(Connection.class);
         doThrow(SQLException.class).when(connMock).close();
         assertDoesNotThrow(() -> instance.closeSafely(connMock));
-        verify(connMock, times(1)).close();
+        verify(connMock).close();
     }
 
     @Test
@@ -330,7 +330,7 @@ class JobLockTest {
     void closeSafely_WhenSuccessOnClose_ThenNothingIsThrown() {
         Connection connMock = mock(Connection.class);
         assertDoesNotThrow(() -> instance.closeSafely(connMock));
-        verify(connMock, times(1)).close();
+        verify(connMock).close();
     }
 
     @Test
@@ -349,6 +349,6 @@ class JobLockTest {
         instanceSpy.onShutdown();
 
         // verifications
-        verify(instanceSpy, times(1)).release(any());
+        verify(instanceSpy).release(any());
     }
 }
