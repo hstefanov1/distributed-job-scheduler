@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Manages PostgreSQL session-level advisory locks (exclusive, non-blocking) keyed by {@link JobName}.
  * <p>
- * Each held lock pins one {@link Connection} from the pool until instance shutdown.
+ * Each held lock pins one {@link Connection} from the pool until the instance shutdown.
  */
 @Slf4j
 @ApplicationScoped

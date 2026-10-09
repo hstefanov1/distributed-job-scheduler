@@ -65,7 +65,7 @@
                 <constraints nullable="false"/>
             </column>
             <column name="last_run_exception"
-                    type="VARCHAR(255)"
+                    type="VARCHAR(1000)"
                     remarks="Exception message (if any) from the last job run.">
                 <constraints nullable="true"/>
             </column>

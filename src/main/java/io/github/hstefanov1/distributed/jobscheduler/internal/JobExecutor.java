@@ -60,7 +60,8 @@ class JobExecutor {
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
-                log.error("Job [{}] failed with an unexpected exception", job, e);
+                String message = "Job [%s] failed due to an exception".formatted(job);
+                log.error(message, e);
             } finally {
                 if (acquired) {
                     semaphore.release();

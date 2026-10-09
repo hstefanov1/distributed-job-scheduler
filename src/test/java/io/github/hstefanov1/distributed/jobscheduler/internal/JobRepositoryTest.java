@@ -196,19 +196,32 @@ class JobRepositoryTest {
             doReturn(jobMock).when(query).firstResult();
             mock.when(() -> JobConfig.find(anyString(), anyLong(), anyString())).thenReturn(query);
 
-            String bigMessage = "Lorem Ipsum is simply dummy text of the " +
-                    "printing and typesetting industry. Lorem Ipsum has been " +
-                    "the industry's standard dummy text ever since 1966, when " +
-                    "designers at Letraset and James Mosley, the librarian at St " +
-                    "Bride Printing Library in London, took a 19";
+            String bigMessage = "Lorem Ipsum is simply dummy text of the printing and " +
+                    "typesetting industry. Lorem Ipsum has been the industry's " +
+                    "standard dummy text ever since 1966, when designers at " +
+                    "Letraset and James Mosley, the librarian at St Bride " +
+                    "Printing Library in London, took a 1970s catalogue of sample " +
+                    "typefaces and scrambled parts of it to make a specimen book. " +
+                    "It has survived not only several decades, but also the leap " +
+                    "into electronic typesetting, remaining essentially " +
+                    "unchanged. It was popularised with the release of sheets " +
+                    "containing passages of placeholder text, and more recently " +
+                    "with desktop publishing software including versions of the " +
+                    "same filler. Many layout tools still ship with this text so " +
+                    "designers can judge spacing, rhythm and balance without " +
+                    "being distracted by meaningful content. Readers tend to " +
+                    "focus on what a sentence says rather than how the page " +
+                    "looks, which is exactly why placeholder copy is used in " +
+                    "mockups, templates and test fixtures. Lorem ipsum dolor sit " +
+                    "amet, consectetur adipiscing el";
 
-            assertEquals(256, bigMessage.length());
+            assertEquals(1001, bigMessage.length());
             assertNull(jobMock.lastRunStatus);
             assertNull(jobMock.lastRunException);
             assertDoesNotThrow(() -> instance.finishJob(1L, JobStatus.FAILED, new RuntimeException(bigMessage)));
             assertEquals(JobStatus.FAILED, jobMock.lastRunStatus);
             assertNotNull(jobMock.lastRunException);
-            assertEquals(255, jobMock.lastRunException.length());
+            assertEquals(1000, jobMock.lastRunException.length());
 
             verify(query).firstResult();
             verify(jobMock).persist();

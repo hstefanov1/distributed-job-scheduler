@@ -1,6 +1,5 @@
 package io.github.hstefanov1.distributed.jobscheduler.internal;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import io.quarkus.panache.common.Page;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -118,7 +117,7 @@ class JobRepository {
                     .map(Throwable::getMessage)
                     .map(String::trim)
                     .filter(s -> !s.isBlank())
-                    .map(ex -> ex.length() > 255 ? ex.substring(0, 255) : ex);
+                    .map(ex -> ex.length() > 1000 ? ex.substring(0, 1000) : ex);
             if (message.isPresent()) {
                 job.lastRunException = message.get();
             } else {

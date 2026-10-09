@@ -65,6 +65,7 @@ class JobConfig extends PanacheEntityBase {
      * Defaults to {@code true}.
      */
     @Column(name = "enabled", nullable = false)
+    @SuppressWarnings("unused")
     boolean enabled = true;
 
     /**
